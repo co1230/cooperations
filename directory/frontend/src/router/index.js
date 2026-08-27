@@ -4,6 +4,10 @@
 import { createRouter, createWebHistory } from "vue-router"
 
 
+// 布局组件
+
+import Layout from "../layouts/Layout.vue"
+
 
 // 页面组件
 
@@ -19,72 +23,74 @@ import Statistics from "../views/Statistics.vue"
 
 
 
-
-
 const routes = [
 
 
-
-    // 默认进入商品管理
+    // 商家后台布局
 
     {
         path: "/",
-        redirect: "/product"
-    },
+
+        component: Layout,
+
+
+        children: [
+
+
+            // 商品管理
+
+            {
+                path: "product",
+
+                name: "Product",
+
+                component: Product
+            },
 
 
 
+            // 商家订单管理
 
+            {
+                path: "order",
 
-    // 商品管理
+                name: "Order",
 
-    {
-        path: "/product",
-        name: "Product",
-        component: Product
-    },
-
-
-
-
-
-    // 商家订单管理
-
-    {
-        path: "/order",
-        name: "Order",
-        component: Order
-    },
+                component: Order
+            },
 
 
 
+            // 商家售后审核
 
+            {
+                path: "after-sale",
 
-    // 商家售后审核
+                name: "AfterSale",
 
-    {
-        path: "/after-sale",
-        name: "AfterSale",
-        component: AfterSale
-    },
-
-
+                component: AfterSale
+            },
 
 
 
-    // 商家营收统计
+            // 商家营收统计
 
-    {
-        path: "/statistics",
-        name: "Statistics",
-        component: Statistics
+            {
+                path: "statistics",
+
+                name: "Statistics",
+
+                component: Statistics
+            }
+
+
+        ]
+
     }
 
 
 
 ]
-
-
 
 
 
@@ -105,6 +111,5 @@ const router = createRouter({
 
 
 
-
-
 export default router
+
