@@ -155,3 +155,70 @@ test('refund rejection requires note and permits shipping afterward',async()=>{
   await orders.shipOrder(1);
   login(1);assert.equal((await orders.listOrders())[0].order_status,'SHIPPED');
 });
+
+test('platform force refund persists record, payment state and audit once',async()=>{
+  const {orders,login,data}=setup();
+  login(1);await orders.payOrder(1);
+  const applied=await orders.applyRefund(1,{ticket_type:'REFUND_ONLY',reason:'平台介入测试',requested_amount:'129'});
+  const id=applied.after_sale_tickets[0].id;
+  login(3);
+  const results=await Promise.allSettled([orders.interveneRefund(id,'FORCE_REFUND','平台确认退款'),orders.interveneRefund(id,'FORCE_REFUND','重复')]);
+  assert.equal(results.filter(r=>r.status==='fulfilled').length,1);
+  const db=JSON.parse(data.get('ecom_order_db_v1'));
+  assert.equal(db.refund_records.length,1);
+  assert.equal(db.refund_records[0].source,'PLATFORM');
+  assert.equal(db.payment_records[0].payment_status,'REFUNDED');
+  assert.equal(db.order_status_logs.at(-1).operator_id,3);
+  login(1);assert.equal((await orders.listOrders())[0].after_sale_status,'REFUNDED');
+  assert.equal((await orders.listOrders())[0].order_status,'PAID');
+  login(2);assert.equal((await orders.listMerchantTickets()).find(t=>t.id===id).platform_intervention.reason,'平台确认退款');
+});
+test('platform rejection is visible and cannot be overwritten by merchant',async()=>{
+  const {orders,login,context}=setup();
+  await orders.interveneRefund(1,'REJECT','凭证不足');
+  login(2);await assert.rejects(orders.reviewRefund(1,'APPROVE','重新同意'),/不允许/);
+  const ticket=(await orders.listMerchantTickets())[0];
+  assert.match(context.refundTicketDetails(ticket),/平台驳回申请/);
+  login(1);assert.equal((await orders.listOrders()).find(o=>o.id===2).after_sale_status,'REJECTED');
+});
+test('only admin can intervene and reason and state are checked',async()=>{
+  const {orders,login}=setup();
+  for(const id of [1,2]) {
+    login(id);
+    await assert.rejects(orders.listPlatformTickets(),/无权/);
+    await assert.rejects(orders.interveneRefund(1,'FORCE_REFUND','测试'),/无权/);
+  }
+  login(3);
+  await assert.rejects(orders.interveneRefund(1,'REJECT',' '),/原因/);
+  await assert.rejects(orders.interveneRefund(1,'INVALID','原因'),/无效/);
+  await assert.rejects(orders.interveneRefund(2,'FORCE_REFUND','已退款'),/已结束/);
+  await assert.rejects(orders.interveneRefund(999,'REJECT','不存在'),/已结束/);
+});
+test('platform may override merchant rejection but never a superseded application',async()=>{
+  const {orders,login}=setup();
+  login(2);await orders.reviewRefund(1,'REJECT','商家拒绝');
+  login(3);assert.equal((await orders.listPlatformTickets()).find(t=>t.id===1).can_force_refund,true);
+  login(1);const order=await orders.applyRefund(2,{ticket_type:'REFUND_ONLY',reason:'新凭证',requested_amount:'30'});
+  login(3);await assert.rejects(orders.interveneRefund(1,'FORCE_REFUND','旧申请'),/新申请/);
+  const newest=order.after_sale_tickets.at(-1);
+  await orders.interveneRefund(newest.id,'FORCE_REFUND','核实新凭证');
+});
+test('platform persistence failure does not partially update order or refund record',async()=>{
+  const {orders,context,data}=setup();
+  await orders.listPlatformTickets();
+  const before=data.get('ecom_order_db_v1');
+  context.localStorage.setItem=()=>{throw new Error('Storage full');};
+  await assert.rejects(orders.interveneRefund(1,'FORCE_REFUND','测试'),/Storage full/);
+  assert.equal(data.get('ecom_order_db_v1'),before);
+});
+test('platform list shows actions only for eligible tickets and escapes reasons',async()=>{
+  const {orders,context}=setup();
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'..','platform-refunds.js'),'utf8'),context);
+  const tickets=await orders.listPlatformTickets();
+  const html=context.platformRefundRows(tickets);
+  assert.match(html,/强制退款（模拟）/);
+  assert.match(html,/驳回申请/);
+  assert.doesNotMatch(context.platformRefundRows(tickets.filter(t=>t.id===2)),/data-platform-ticket/);
+  await orders.interveneRefund(1,'REJECT','<script>test</script>');
+  assert.match(context.platformRefundRows(await orders.listPlatformTickets()),/&lt;script&gt;/);
+});

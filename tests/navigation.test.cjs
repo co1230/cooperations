@@ -25,6 +25,7 @@ function setup() {
   context.loadAdminPage = () => {};
   context.loadMerchantProducts = () => {};
   context.loadBusinessPage = () => {};
+  context.loadPlatformRefunds = () => {};
   context.loadStoreCatalog = () => {};
   context.buyerOrdersView = () => {orderVisits++;};
   return {context,app,nodes,orderVisits:()=>orderVisits};
@@ -40,6 +41,9 @@ test('all dashboard nav items render matching content and active state', () => {
       assert.match(app.innerHTML, new RegExp(`aria-current="page"[^>]*data-page-index="${index}"`));
       if ((role==='MERCHANT'&&['订单管理','售后管理','店铺设置'].includes(config.nav[index]))||(role==='ADMIN'&&config.nav[index]==='商品治理')) assert.match(app.innerHTML,/id="businessPage"/);
       else if (index===0 || config.nav[index]==='订单监管') assert.match(app.innerHTML,/id="dashboardOrders"/);
+      else if(role==='ADMIN' && config.nav[index]==='售后介入') {
+        assert.match(app.innerHTML,/id="platformRefunds"/);
+      }
       else if(role==='ADMIN' && ['用户管理','商家审核'].includes(config.nav[index])) {
         assert.match(app.innerHTML,/id="adminPage"/);
         assert.doesNotMatch(app.innerHTML,/页面（开发中）/);

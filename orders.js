@@ -1,7 +1,7 @@
 const canApplyRefund = order => ['PAID', 'SHIPPED', 'COMPLETED'].includes(order.order_status) && ['NONE', 'REJECTED'].includes(order.after_sale_status);
 function refundTicketDetails(ticket) {
   const evidence = (ticket.evidence_urls || []).filter(url => /^data:image\/(png|jpeg|webp);base64,[A-Za-z0-9+/]+={0,2}$/.test(url));
-  return `<details class="refund-details"><summary>工单 ${escapeHtml(ticket.ticket_no)}</summary><p>${ticket.ticket_type === 'RETURN_REFUND' ? '退货退款' : '仅退款'} · ${money(ticket.requested_amount)}</p><p>${escapeHtml(ticket.reason)}</p><div class="refund-evidence">${evidence.map(url => `<img src="${escapeHtml(url)}" alt="退款凭证" loading="lazy">`).join('')}</div></details>`;
+  return `<details class="refund-details"><summary>工单 ${escapeHtml(ticket.ticket_no)}</summary><p>${ticket.ticket_type === 'RETURN_REFUND' ? '退货退款' : '仅退款'} · ${money(ticket.requested_amount)}</p><p>${escapeHtml(ticket.reason)}</p>${ticket.platform_intervention?`<p>平台${ticket.platform_intervention.decision==='FORCE_REFUND'?'强制退款':'驳回申请'}：${escapeHtml(ticket.platform_intervention.reason)}<small>管理员 ${escapeHtml(ticket.platform_intervention.operator_id)} · ${escapeHtml(ticket.platform_intervention.created_at)}</small></p>`:''}<div class="refund-evidence">${evidence.map(url => `<img src="${escapeHtml(url)}" alt="退款凭证" loading="lazy">`).join('')}</div></details>`;
 }
 function orderRows(orders, actions = false) {
   return orders.map(order => `<tr><td>${escapeHtml(order.order_no)}<small>${escapeHtml(new Date(order.created_at).toLocaleString('zh-CN'))}</small></td>

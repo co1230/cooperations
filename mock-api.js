@@ -15,6 +15,13 @@ const orderApi = (() => {
   function shop(db,id) {return (db.shops ??= {})[id] ??= {name:id===2?'山屿生活馆':'我的店铺',contact:'',description:'',delivery_note:'',after_sale_note:'',open:true};}
   function available(db,product) {return product.product_status==='ON_SALE'&&!product.governance_locked&&shop(db,product.merchant_id).open;}
   function save(db) {localStorage.setItem(key,JSON.stringify(db));}
+  function canIntervene(db,ticket,decision) {
+    const order=db.orders.find(order=>order.id===ticket.order_id);
+    if(!order||ticket.platform_intervention||order.after_sale_status==='REFUNDED') return false;
+    if(!['PAID','SHIPPED','COMPLETED'].includes(order.order_status)) return false;
+    if(db.after_sale_tickets.some(other=>other.order_id===ticket.order_id&&other.id>ticket.id)) return false;
+    return (decision==='FORCE_REFUND'?['APPLIED','PROCESSING','APPROVED','REJECTED']:['APPLIED','PROCESSING','APPROVED']).includes(ticket.status);
+  }
   function read() {
     const saved = localStorage.getItem(key);
     if (saved) return JSON.parse(saved);
@@ -89,6 +96,33 @@ const orderApi = (() => {
     return result;
   }
   return {
+    listPlatformTickets: () => request(user=>{
+      requireRole(user,'ADMIN');const db=read();
+      return copy(db.after_sale_tickets.map(ticket=>({...ticket,
+        order_no:db.orders.find(order=>order.id===ticket.order_id)?.order_no,
+        can_force_refund:canIntervene(db,ticket,'FORCE_REFUND'),can_reject:canIntervene(db,ticket,'REJECT')
+      })).sort((a,b)=>b.id-a.id));
+    }),
+    interveneRefund: (id,decision,reason) => request(user=>{
+      requireRole(user,'ADMIN');
+      if(!['FORCE_REFUND','REJECT'].includes(decision)) throw new Error('无效的平台处理操作');
+      if(typeof reason!=='string'||!reason.trim()||reason.trim().length>200) throw new Error('请填写 1–200 字平台处理原因');
+      const db=read(),ticket=db.after_sale_tickets.find(ticket=>ticket.id===id);
+      if(!ticket||!canIntervene(db,ticket,decision)) throw new Error('该工单已结束、已有新申请或不可重复介入，请刷新列表');
+      const order=db.orders.find(order=>order.id===ticket.order_id),now=new Date().toISOString(),previous=order.after_sale_status;
+      if(decision==='FORCE_REFUND') {
+        const amount=Number(ticket.requested_amount),cents=Math.round(amount*100);
+        if(!Number.isFinite(amount)||cents<=0||cents>Math.round(order.total_amount*100)||Math.abs(amount*100-cents)>0.000001) throw new Error('工单退款金额无效，无法执行退款');
+        if((db.refund_records||[]).some(record=>record.order_id===order.id)) throw new Error('该订单已有退款记录，不能重复退款');
+        ticket.status='COMPLETED';ticket.completed_at=now;order.after_sale_status='REFUNDED';
+        (db.refund_records??=[]).push({ticket_id:id,order_id:order.id,amount:cents/100,operator_id:user.id,created_at:now,method:'MOCK',source:'PLATFORM'});
+        if(cents===Math.round(order.total_amount*100)) db.payment_records.filter(p=>p.order_id===order.id&&p.payment_status==='SUCCESS').forEach(p=>{p.payment_status='REFUNDED';});
+      } else {ticket.status='REJECTED';order.after_sale_status='REJECTED';}
+      ticket.platform_intervention={decision,reason:reason.trim(),operator_id:user.id,created_at:now};
+      ticket.updated_at=now;order.updated_at=now;
+      db.order_status_logs.push({id:db.order_status_logs.length+1,order_id:order.id,operator_id:user.id,status_type:'AFTER_SALE',from_status:previous,to_status:order.after_sale_status,remark:`平台${decision==='FORCE_REFUND'?'强制退款':'驳回'}：${reason.trim()}`,created_at:now});
+      save(db);return copy(ticket);
+    }),
     listStoreProducts: () => request(() => {const db=read();return copy(catalog(db).filter(product=>available(db,product)));}),
     saveProduct: (id,values) => request(user=>{
       requireRole(user,'MERCHANT');
