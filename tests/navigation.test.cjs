@@ -19,11 +19,13 @@ function setup() {
   };
   let orderVisits = 0;
   const context = vm.createContext({document, sessionStorage:{getItem:()=>null},productCatalog:[],wireProductCart:()=>{}});
-  for (const file of ['orders.js','navigation.js','app.js']) vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'), context);
+  for (const file of ['utils.js','orders.js','navigation.js','app.js']) vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'), context);
   context.loadDashboardOrders = () => {};
   context.loadHomeOrders = () => {};
   context.loadAdminPage = () => {};
   context.loadMerchantProducts = () => {};
+  context.loadBusinessPage = () => {};
+  context.loadStoreCatalog = () => {};
   context.buyerOrdersView = () => {orderVisits++;};
   return {context,app,nodes,orderVisits:()=>orderVisits};
 }
@@ -36,7 +38,8 @@ test('all dashboard nav items render matching content and active state', () => {
       context.dashboard({role,name:'测试用户'},index);
       assert.match(app.innerHTML, new RegExp(config.nav[index]));
       assert.match(app.innerHTML, new RegExp(`aria-current="page"[^>]*data-page-index="${index}"`));
-      if (index===0 || ['订单管理','订单监管'].includes(config.nav[index])) assert.match(app.innerHTML,/id="dashboardOrders"/);
+      if ((role==='MERCHANT'&&['订单管理','售后管理','店铺设置'].includes(config.nav[index]))||(role==='ADMIN'&&config.nav[index]==='商品治理')) assert.match(app.innerHTML,/id="businessPage"/);
+      else if (index===0 || config.nav[index]==='订单监管') assert.match(app.innerHTML,/id="dashboardOrders"/);
       else if(role==='ADMIN' && ['用户管理','商家审核'].includes(config.nav[index])) {
         assert.match(app.innerHTML,/id="adminPage"/);
         assert.doesNotMatch(app.innerHTML,/页面（开发中）/);

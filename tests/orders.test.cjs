@@ -66,6 +66,7 @@ test('checkout persistence failure keeps cart and orders unchanged', async () =>
 test('cart renderer has quantity, selection, checkout and empty states', async () => {
   const {api} = setup();
   const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'utils.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'orders.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'cart.js'), 'utf8'), context);
   const render = vm.runInContext('cartContents', context);
@@ -141,6 +142,7 @@ test('session changes while requesting are rejected', async () => {
 test('order renderer maps PAID to awaiting shipment and hides payment action', async () => {
   const {api} = setup();
   const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'utils.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'orders.js'), 'utf8'), context);
   const render = vm.runInContext('orderRows', context);
   const pending = await api.listOrders();
@@ -172,6 +174,7 @@ test('refund creates a persisted ticket, evidence and after-sale log without cha
   login(1);
   assert.equal((await api.listOrders())[0].after_sale_tickets[0].status, 'APPLIED');
   const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'utils.js'), 'utf8'), context);
   vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'orders.js'), 'utf8'), context);
   const html = vm.runInContext('orderRows', context)([result], true);
   assert.match(html, /退款审核中/);

@@ -10,6 +10,11 @@ const productCatalog = [
 const orderApi = (() => {
   const key = 'ecom_order_db_v1';
   const copy = value => JSON.parse(JSON.stringify(value));
+  const catalog = db => db.products ??= copy(productCatalog);
+  function requireRole(user,role) {if(user.role!==role) throw new Error('无权执行此操作');}
+  function shop(db,id) {return (db.shops ??= {})[id] ??= {name:id===2?'山屿生活馆':'我的店铺',contact:'',description:'',delivery_note:'',after_sale_note:'',open:true};}
+  function available(db,product) {return product.product_status==='ON_SALE'&&!product.governance_locked&&shop(db,product.merchant_id).open;}
+  function save(db) {localStorage.setItem(key,JSON.stringify(db));}
   function read() {
     const saved = localStorage.getItem(key);
     if (saved) return JSON.parse(saved);
@@ -70,7 +75,7 @@ const orderApi = (() => {
   }
   function cartView(db, user) {
     const items = buyerCart(db, user).map(item => {
-      const product = productCatalog.find(product => product.id === item.product_id);
+      const product = catalog(db).find(product => product.id === item.product_id);
       if (!product) throw new Error('购物车商品不存在');
       return {...item, product: copy(product), subtotal: Math.round(product.price * 100) * item.quantity / 100};
     });
@@ -84,14 +89,81 @@ const orderApi = (() => {
     return result;
   }
   return {
+    listStoreProducts: () => request(() => {const db=read();return copy(catalog(db).filter(product=>available(db,product)));}),
+    saveProduct: (id,values) => request(user=>{
+      requireRole(user,'MERCHANT');
+      const db=read(), products=catalog(db);
+      let product=id===null?null:products.find(product=>product.id===id&&product.merchant_id===user.id);
+      if(id!==null&&!product) throw new Error('商品不存在或不属于本店');
+      const name=String(values.name||'').trim(),description=String(values.description||'').trim();
+      if(!name||name.length>160||description.length>1000) throw new Error('商品名称需为 1–160 字，描述不超过 1000 字');
+      if(!/^\d+(\.\d{1,2})?$/.test(String(values.price))||Number(values.price)<=0||Number(values.price)>9999999) throw new Error('售价须大于零，最多两位小数');
+      const stock=Number(values.stock);
+      if(!Number.isInteger(stock)||stock<0||stock>999999) throw new Error('库存须为 0–999999 的整数');
+      if(!['ON_SALE','OFF_SALE','DRAFT'].includes(values.product_status)) throw new Error('商品状态无效');
+      if(product?.governance_locked&&values.product_status==='ON_SALE') throw new Error('商品已被平台下架，请等待解除限制');
+      if(!product) {const newId=Math.max(100,...products.map(p=>p.id))+1;product={id:newId,merchant_id:user.id,sku:`PRODUCT-${newId}`,icon:'▦',tag:'新品',background:'#e6e3d8'};products.push(product);}
+      Object.assign(product,{name,description,price:Number(values.price),original_price:Number(values.price),stock,product_status:values.product_status,updated_at:new Date().toISOString()});
+      save(db);return copy(product);
+    }),
+    listGovernance: () => request(user=>{requireRole(user,'ADMIN');const db=read();return {products:copy(catalog(db)),logs:copy(db.governance_logs||[])};}),
+    governProduct: (id,locked,reason) => request(user=>{
+      requireRole(user,'ADMIN');
+      if(typeof locked!=='boolean'||typeof reason!=='string'||!reason.trim()||reason.trim().length>200) throw new Error('请填写 1–200 字治理原因');
+      const db=read(),product=catalog(db).find(p=>p.id===id);
+      if(!product) throw new Error('商品不存在');
+      if(Boolean(product.governance_locked)===locked) throw new Error('商品治理状态已变更，请刷新');
+      product.governance_locked=locked;product.governance_reason=reason.trim();
+      product.product_status='OFF_SALE';
+      (db.governance_logs??=[]).push({product_id:id,operator_id:user.id,action:locked?'下架并限制上架':'解除限制（待商家重新上架）',reason:reason.trim(),created_at:new Date().toISOString()});
+      save(db);return copy(product);
+    }),
+    getShop: () => request(user=>{requireRole(user,'MERCHANT');return copy(shop(read(),user.id));}),
+    saveShop: values => request(user=>{
+      requireRole(user,'MERCHANT');const db=read();
+      const updated={};
+      for(const field of ['name','contact','description','delivery_note','after_sale_note']) {
+        const value=String(values[field]||'').trim();
+        if(value.length>(field==='name'?50:500)||field==='name'&&!value) throw new Error('店铺名称必填（最多50字），其他字段最多500字');
+        updated[field]=value;
+      }
+      if(typeof values.open!=='boolean') throw new Error('营业状态无效');
+      Object.assign(shop(db,user.id),updated,{open:values.open});save(db);return copy(shop(db,user.id));
+    }),
+    listMerchantTickets: () => request(user=>{requireRole(user,'MERCHANT');const db=read();return copy(db.after_sale_tickets.filter(t=>t.merchant_id===user.id).map(t=>({...t,order_no:db.orders.find(o=>o.id===t.order_id)?.order_no})));}),
+    reviewRefund: (id,action,note) => request(user=>{
+      requireRole(user,'MERCHANT');
+      if(typeof note!=='string'||note.trim().length>200||action==='REJECT'&&!note.trim()) throw new Error('拒绝需填写原因，备注最多200字');
+      const db=read(),ticket=db.after_sale_tickets.find(t=>t.id===id&&t.merchant_id===user.id);
+      if(!ticket) throw new Error('售后工单不存在或不属于本店');
+      const order=db.orders.find(o=>o.id===ticket.order_id),previous=order.after_sale_status,now=new Date().toISOString();
+      if(['APPROVE','REJECT'].includes(action)&&['APPLIED','PROCESSING'].includes(ticket.status)) {
+        ticket.status=action==='APPROVE'?'APPROVED':'REJECTED';order.after_sale_status=ticket.status;
+      } else if(action==='REFUND'&&ticket.status==='APPROVED') {
+        ticket.status='COMPLETED';ticket.completed_at=now;order.after_sale_status='REFUNDED';
+        (db.refund_records??=[]).push({ticket_id:id,order_id:order.id,amount:ticket.requested_amount,operator_id:user.id,created_at:now,method:'MOCK'});
+        if(Number(ticket.requested_amount)===Number(order.total_amount)) db.payment_records.filter(p=>p.order_id===order.id&&p.payment_status==='SUCCESS').forEach(p=>{p.payment_status='REFUNDED';});
+      } else throw new Error('当前工单状态不允许此操作，请勿重复处理');
+      ticket.merchant_reply=note.trim();ticket.updated_at=now;order.updated_at=now;
+      db.order_status_logs.push({id:db.order_status_logs.length+1,order_id:order.id,operator_id:user.id,status_type:'AFTER_SALE',from_status:previous,to_status:order.after_sale_status,remark:note.trim()||'商家售后处理',created_at:now});
+      save(db);return copy(ticket);
+    }),
+    shipOrder: id => request(user=>{
+      requireRole(user,'MERCHANT');const db=read(),order=db.orders.find(o=>o.id===id&&o.merchant_id===user.id);
+      if(!order||order.order_status!=='PAID'||!['NONE','REJECTED','CLOSED'].includes(order.after_sale_status)) throw new Error('订单不可发货：请确认已付款且无进行中的售后');
+      const now=new Date().toISOString();order.order_status='SHIPPED';order.shipped_at=now;order.updated_at=now;
+      db.order_status_logs.push({id:db.order_status_logs.length+1,order_id:id,operator_id:user.id,status_type:'ORDER',from_status:'PAID',to_status:'SHIPPED',remark:'商家模拟发货',created_at:now});save(db);return detail(db,order);
+    }),
     listMerchantProducts: () => request(user => {
       if (user.role !== 'MERCHANT') throw new Error('仅商家可查看店铺商品');
-      return copy(productCatalog.filter(product => product.merchant_id === user.id));
+      return copy(catalog(read()).filter(product => product.merchant_id === user.id));
     }),
     getCart: () => request(user => cartView(read(), user)),
     addToCart: productId => request(user => {
       const db = read(), cart = buyerCart(db, user);
-      if (!productCatalog.some(product => product.id === productId)) throw new Error('商品不存在');
+      const product=catalog(db).find(product=>product.id===productId);
+      if(!product) throw new Error('商品不存在');
+      if(!available(db,product)||product.stock===0) throw new Error('商品已下架、店铺休业或无库存');
       const item = cart.find(item => item.product_id === productId);
       if (item) {
         if (item.quantity >= 99) throw new Error('每件商品最多购买 99 件');
@@ -128,6 +200,11 @@ const orderApi = (() => {
       const db = read(), snapshot = cartView(db, user);
       const selected = snapshot.items.filter(item => item.selected);
       if (!selected.length) throw new Error('请先勾选要结算的商品');
+      for(const item of selected) {
+        const product=catalog(db).find(p=>p.id===item.product_id);
+        if(!available(db,product)||product.stock<item.quantity) throw new Error(`${product.name}已下架、休业或库存不足，请调整购物车`);
+        product.stock-=item.quantity;
+      }
       const now = new Date().toISOString(), created = [];
       for (const merchantId of new Set(selected.map(item => item.product.merchant_id))) {
         const items = selected.filter(item => item.product.merchant_id === merchantId);
