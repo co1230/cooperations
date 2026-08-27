@@ -39,6 +39,7 @@ const orderApi = (() => {
     return db;
   }
   function actor() {
+    if (typeof accountService !== 'undefined') return accountService.currentUser();
     const session = JSON.parse(sessionStorage.getItem('ecom_session') || 'null');
     if (!session || !['BUYER', 'MERCHANT', 'ADMIN'].includes(session.role)) throw new Error('请先登录');
     return session;

@@ -22,12 +22,14 @@ function dashboard(user, index = 0) {
   const title = d.nav[index];
   if (user.role === 'BUYER' && title === '我的订单') return buyerOrdersView();
   const isOrders = ['订单管理','订单监管'].includes(title);
+  const isAdminPage=user.role==='ADMIN'&&['用户管理','商家审核'].includes(title);
   const table = `<section class="panel"><div class="panel-head"><h3>${isOrders ? title : '近期订单'}</h3><span class="badge green">模拟接口数据</span></div><div class="table-wrap"><table><thead><tr><th>订单编号</th><th>商品</th><th>金额</th><th>订单状态</th><th>售后状态</th></tr></thead><tbody id="dashboardOrders"><tr><td colspan="5">正在加载订单…</td></tr></tbody></table></div></section>`;
-  const content = index === 0 ? `<p class="hint">以下统计为演示数据，订单列表读取模拟接口。</p><section class="stats">${d.stats.map(s=>`<article class="stat"><span>${s[0]}</span><strong>${s[1]}</strong></article>`).join('')}</section>${table}` : isOrders ? table : plannedPageContent(title);
+  const content = index === 0 ? `<p class="hint">以下统计为演示数据，订单列表读取模拟接口。</p><section class="stats">${d.stats.map(s=>`<article class="stat"><span>${s[0]}</span><strong>${s[1]}</strong></article>`).join('')}</section>${table}` : isOrders ? table : isAdminPage ? '<section class="panel" id="adminPage"><p role="status">正在加载…</p></section>' : plannedPageContent(title);
   app.innerHTML = `<div class="shell"><aside class="side"><div class="logo">QINGLAN</div><div class="role-tag">${roleNames[user.role]}</div><nav class="nav" aria-label="后台导航">${d.nav.map((name,i)=>`<button class="${i === index ? 'active' : ''}" ${i === index ? 'aria-current="page"' : ''} aria-label="${name}" title="${name}" data-page-index="${i}" data-icon="${['⌂','▦','◎','◇','⚙'][i]}">${name}</button>`).join('')}${user.role === 'BUYER' ? '<button id="dashboardStore" data-icon="⌂" title="商城首页" aria-label="商城首页">商城首页</button>' : ''}<button class="logout" data-icon="↪" title="退出登录" aria-label="退出登录">退出登录</button></nav></aside><main class="main"><header class="top"><div><h2>${index === 0 ? d.title : title}</h2><p>${index === 0 ? d.subtitle : `${roleNames[user.role]} / ${title}`}</p></div><div class="avatar">${escapeHtml(user.name.slice(0,1))}</div></header>${content}${index ? '<button class="order-pay" id="backOverview">返回概览</button>' : ''}${title === '售后服务' ? '<button class="order-pay" id="existingRefunds">查看订单并申请退款</button>' : ''}</main></div>`;
   document.querySelectorAll('[data-page-index]').forEach(button => {button.onclick = () => dashboard(user, Number(button.dataset.pageIndex));});
   document.querySelector('.logout').onclick = () => {sessionStorage.removeItem('ecom_session'); authView();};
   if (index === 0 || isOrders) loadDashboardOrders(document.querySelector('#dashboardOrders'));
+  if (isAdminPage) loadAdminPage(document.querySelector('#adminPage'),title);
   if (index) document.querySelector('#backOverview').onclick = () => dashboard(user);
   if (user.role === 'BUYER') document.querySelector('#dashboardStore').onclick = () => storeHome(user);
   if (title === '售后服务') document.querySelector('#existingRefunds').onclick = () => buyerOrdersView();

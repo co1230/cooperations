@@ -22,6 +22,7 @@ function setup() {
   for (const file of ['orders.js','navigation.js','app.js']) vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'), context);
   context.loadDashboardOrders = () => {};
   context.loadHomeOrders = () => {};
+  context.loadAdminPage = () => {};
   context.buyerOrdersView = () => {orderVisits++;};
   return {context,app,nodes,orderVisits:()=>orderVisits};
 }
@@ -35,7 +36,10 @@ test('all dashboard nav items render matching content and active state', () => {
       assert.match(app.innerHTML, new RegExp(config.nav[index]));
       assert.match(app.innerHTML, new RegExp(`aria-current="page"[^>]*data-page-index="${index}"`));
       if (index===0 || ['订单管理','订单监管'].includes(config.nav[index])) assert.match(app.innerHTML,/id="dashboardOrders"/);
-      else {
+      else if(role==='ADMIN' && ['用户管理','商家审核'].includes(config.nav[index])) {
+        assert.match(app.innerHTML,/id="adminPage"/);
+        assert.doesNotMatch(app.innerHTML,/页面（开发中）/);
+      } else {
         assert.ok(app.innerHTML.includes(`${config.nav[index]}页面（开发中）`));
         assert.match(app.innerHTML,/计划功能/);
         assert.doesNotMatch(app.innerHTML,/id="dashboardOrders"/);
