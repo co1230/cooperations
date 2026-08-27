@@ -11,6 +11,12 @@ import Product from "../views/Product.vue"
 
 import Order from "../views/Order.vue"
 
+import AfterSale from "../views/AfterSale.vue"
+
+import Statistics from "../views/Statistics.vue"
+
+
+
 
 
 
@@ -28,6 +34,8 @@ const routes = [
 
 
 
+
+
     // 商品管理
 
     {
@@ -38,17 +46,45 @@ const routes = [
 
 
 
-    // 订单管理
+
+
+    // 商家订单管理
 
     {
         path: "/order",
         name: "Order",
         component: Order
+    },
+
+
+
+
+
+    // 商家售后审核
+
+    {
+        path: "/after-sale",
+        name: "AfterSale",
+        component: AfterSale
+    },
+
+
+
+
+
+    // 商家营收统计
+
+    {
+        path: "/statistics",
+        name: "Statistics",
+        component: Statistics
     }
 
 
 
 ]
+
+
 
 
 
@@ -64,6 +100,8 @@ const router = createRouter({
 
 
 })
+
+
 
 
 
