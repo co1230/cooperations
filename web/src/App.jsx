@@ -5,6 +5,7 @@ import Home from './pages/Home'
 import Search from './pages/Search'
 import Category from './pages/Category'
 import ProductDetail from './pages/ProductDetail'
+import ShopDetail from './pages/ShopDetail'
 import Profile from './pages/Profile'
 import AddressList from './pages/AddressList'
 import Favorites from './pages/Favorites'
@@ -23,6 +24,7 @@ export default function App() {
             <Route path="/search" element={<Search />} />
             <Route path="/category" element={<Category />} />
             <Route path="/product/:id" element={<ProductDetail />} />
+            <Route path="/shop/:id" element={<ShopDetail />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/pay" element={<Pay />} />

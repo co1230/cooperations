@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { products, brands } from '../mock/data'
-import ProductGrid from '../components/ProductGrid'
+import PagedGrid from '../components/PagedGrid'
 
 const allCats = ['', ...new Set(products.map((p) => p.category))]
 
@@ -17,9 +17,9 @@ export default function Search() {
   const [params] = useSearchParams()
   const initKeyword = params.get('keyword') || ''
   const [keyword, setKeyword] = useState(initKeyword)
-  const [category, setCategory] = useState('')
-  const [brand, setBrand] = useState('')
-  const [priceRange, setPriceRange] = useState('')
+  const [category, setCategory] = useState(params.get('category') || '')
+  const [brand, setBrand] = useState(params.get('brand') || '')
+  const [priceRange, setPriceRange] = useState(params.get('price') || '')
   const [onlyInStock, setOnlyInStock] = useState(false)
   const [sort, setSort] = useState('default')
 
@@ -133,7 +133,7 @@ export default function Search() {
         ))}
       </div>
 
-      <ProductGrid products={result} />
+      <PagedGrid products={result} />
     </div>
   )
 }

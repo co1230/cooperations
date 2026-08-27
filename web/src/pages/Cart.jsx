@@ -1,5 +1,7 @@
+import { useMemo } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
 import { useCart, resolveProduct } from '../components/CartContext'
+import { getShopById } from '../mock/data'
 
 export default function Cart() {
   const navigate = useNavigate()
@@ -10,6 +12,17 @@ export default function Cart() {
 
   const totalPrice = checkedItems.reduce((s, i) => s + i.price * i.qty, 0)
   const totalQty = checkedItems.reduce((s, i) => s + i.qty, 0)
+
+  // 按店铺分组：同一店铺的商品排在同一队列
+  const groups = useMemo(() => {
+    const map = {}
+    cart.forEach((item) => {
+      const shopId = resolveProduct(item.productId).shopId
+      if (!map[shopId]) map[shopId] = []
+      map[shopId].push(item)
+    })
+    return Object.entries(map).map(([shopId, items]) => ({ shop: getShopById(shopId), items }))
+  }, [cart])
 
   const toCheckout = () => {
     if (checkedItems.length === 0) {
@@ -31,52 +44,51 @@ export default function Cart() {
         </div>
       ) : (
         <>
-          <div className="card" style={{ padding: 0, overflow: 'hidden' }}>
-            {cart.map((item) => {
-              const prod = resolveProduct(item.productId)
-              return (
-                <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, borderBottom: '1px solid var(--border)' }}>
-                  <input
-                    type="checkbox"
-                    checked={item.checked}
-                    onChange={() => toggleCheck(item.key)}
-                    style={{ width: 18, height: 18 }}
-                  />
-                  <Link to={`/product/${prod.id}`} style={{ flexShrink: 0 }}>
-                    <img src={prod.image} alt={prod.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6 }} />
-                  </Link>
-                  <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{prod.name}</div>
-                    <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
-                      {item.skuLabels.map((l, i) => (
-                        <span key={i} style={{ background: '#f5f5f5', borderRadius: 3, padding: '2px 6px', marginRight: 6 }}>{l}</span>
-                      ))}
+          {groups.map(({ shop, items }) => (
+            <div className="card" key={shop.id} style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+              {/* 店铺头 */}
+              <Link to={`/shop/${shop.id}`} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
+                <span style={{ fontSize: 22 }}>{shop.logo}</span>
+                <span style={{ fontWeight: 600, fontSize: 15 }}>{shop.name}</span>
+                <span style={{ marginLeft: 'auto', color: '#999', fontSize: 13 }}>进店 ›</span>
+              </Link>
+
+              {/* 店内商品 */}
+              {items.map((item) => {
+                const prod = resolveProduct(item.productId)
+                return (
+                  <div key={item.key} style={{ display: 'flex', alignItems: 'center', gap: 16, padding: 16, borderBottom: '1px solid var(--border)' }}>
+                    <input type="checkbox" checked={item.checked} onChange={() => toggleCheck(item.key)} style={{ width: 18, height: 18 }} />
+                    <Link to={`/product/${prod.id}`} style={{ flexShrink: 0 }}>
+                      <img src={prod.image} alt={prod.name} style={{ width: 80, height: 80, objectFit: 'cover', borderRadius: 6 }} />
+                    </Link>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontSize: 15, fontWeight: 600, marginBottom: 4 }}>{prod.name}</div>
+                      <div style={{ fontSize: 13, color: '#666', marginBottom: 8 }}>
+                        {item.skuLabels.map((l, i) => (
+                          <span key={i} style={{ background: '#f5f5f5', borderRadius: 3, padding: '2px 6px', marginRight: 6 }}>{l}</span>
+                        ))}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                        <span className="price" style={{ fontSize: 16 }}>{item.price}</span>
+                        <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>库存 {item.maxStock}</span>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center' }}>
-                      <span className="price" style={{ fontSize: 16 }}>{item.price}</span>
-                      <span style={{ color: '#999', fontSize: 12, marginLeft: 8 }}>库存 {item.maxStock}</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: 4 }}>
+                        <button onClick={() => updateQty(item.key, item.qty - 1)} style={{ width: 30, height: 30, background: '#f5f5f5' }}>−</button>
+                        <span style={{ width: 40, textAlign: 'center' }}>{item.qty}</span>
+                        <button onClick={() => updateQty(item.key, item.qty + 1)} style={{ width: 30, height: 30, background: '#f5f5f5' }}>+</button>
+                      </div>
+                      <button className="btn secondary" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--danger)' }} onClick={() => removeItem(item.key)}>
+                        删除
+                      </button>
                     </div>
                   </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', border: '1px solid #ddd', borderRadius: 4 }}>
-                      <button
-                        onClick={() => updateQty(item.key, item.qty - 1)}
-                        style={{ width: 30, height: 30, background: '#f5f5f5' }}
-                      >−</button>
-                      <span style={{ width: 40, textAlign: 'center' }}>{item.qty}</span>
-                      <button
-                        onClick={() => updateQty(item.key, item.qty + 1)}
-                        style={{ width: 30, height: 30, background: '#f5f5f5' }}
-                      >+</button>
-                    </div>
-                    <button className="btn secondary" style={{ padding: '6px 10px', fontSize: 13, color: 'var(--danger)' }} onClick={() => removeItem(item.key)}>
-                      删除
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
+                )
+              })}
+            </div>
+          ))}
 
           {/* 底部结算栏 */}
           <div style={{

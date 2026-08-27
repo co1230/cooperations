@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useSearchParams, Link } from 'react-router-dom'
 import { products, categories } from '../mock/data'
-import ProductGrid from '../components/ProductGrid'
+import PagedGrid from '../components/PagedGrid'
 
 export default function Category() {
   const [params] = useSearchParams()
@@ -77,7 +77,7 @@ export default function Category() {
             <Link to="/search">去搜索页进行多条件筛选 →</Link>
           </div>
 
-          <ProductGrid products={list} />
+          <PagedGrid products={list} />
         </div>
       </div>
     </div>

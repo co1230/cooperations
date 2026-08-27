@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { Link, useNavigate, useLocation } from 'react-router-dom'
 import { useCart, resolveProduct } from '../components/CartContext'
+import { getShopById } from '../mock/data'
 import { load } from '../utils/store'
 
 export default function Checkout() {
@@ -25,6 +26,17 @@ export default function Checkout() {
   // 满 199 减 20（模拟优惠）
   const discount = totalPrice >= 199 ? 20 : 0
   const payPrice = totalPrice - discount
+
+  // 按店铺分组展示
+  const checkoutGroups = useMemo(() => {
+    const map = {}
+    items.forEach((item) => {
+      const shopId = resolveProduct(item.productId).shopId
+      if (!map[shopId]) map[shopId] = []
+      map[shopId].push(item)
+    })
+    return Object.entries(map).map(([shopId, its]) => ({ shop: getShopById(shopId), items: its }))
+  }, [items])
 
   const addresses = load('address', [])
   const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0]
@@ -89,24 +101,30 @@ export default function Checkout() {
         )}
       </div>
 
-      {/* 商品清单 */}
-      <div className="card" style={{ marginBottom: 16, padding: 0 }}>
-        {items.map((item) => {
-          const prod = resolveProduct(item.productId)
-          return (
-            <div key={item.key} style={{ display: 'flex', gap: 14, padding: 16, borderBottom: '1px solid var(--border)' }}>
-              <img src={prod.image} alt={prod.name} style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 6 }} />
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.name}</div>
-                <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                  {item.skuLabels.join(' / ')} × {item.qty}
+      {/* 商品清单（按店铺分组） */}
+      {checkoutGroups.map(({ shop, items: shopItems }) => (
+        <div className="card" key={shop.id} style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 20 }}>{shop.logo}</span>
+            <span style={{ fontWeight: 600, fontSize: 14 }}>{shop.name}</span>
+          </div>
+          {shopItems.map((item) => {
+            const prod = resolveProduct(item.productId)
+            return (
+              <div key={item.key} style={{ display: 'flex', gap: 14, padding: 16, borderBottom: '1px solid var(--border)' }}>
+                <img src={prod.image} alt={prod.name} style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 6 }} />
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.name}</div>
+                  <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
+                    {item.skuLabels.join(' / ')} × {item.qty}
+                  </div>
                 </div>
+                <span className="price" style={{ fontSize: 16 }}>{item.price * item.qty}</span>
               </div>
-              <span className="price" style={{ fontSize: 16 }}>{item.price * item.qty}</span>
-            </div>
-          )
-        })}
-      </div>
+            )
+          })}
+        </div>
+      ))}
 
       {/* 金额明细 */}
       <div className="card" style={{ marginBottom: 16 }}>

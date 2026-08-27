@@ -1,6 +1,18 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
 import { useCart, resolveProduct } from '../components/CartContext'
+import { getShopById } from '../mock/data'
+
+// 按店铺分组订单内商品
+function groupItems(items) {
+  const map = {}
+  items.forEach((it) => {
+    const shopId = resolveProduct(it.productId).shopId
+    if (!map[shopId]) map[shopId] = []
+    map[shopId].push(it)
+  })
+  return Object.entries(map).map(([shopId, its]) => ({ shop: getShopById(shopId), items: its }))
+}
 
 const statusTabs = [
   { key: 'all', label: '全部' },
@@ -93,19 +105,27 @@ export default function Orders() {
                   </button>
                 </div>
 
-                {o.items.map((it) => {
-                  const prod = resolveProduct(it.productId)
-                  return (
-                    <div key={it.key} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-                      <img src={prod.image} alt={prod.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }} />
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.name}</div>
-                        <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>{it.skuLabels.join(' / ')} × {it.qty}</div>
-                      </div>
-                      <span style={{ fontSize: 14 }}>¥{it.price * it.qty}</span>
+                {groupItems(o.items).map(({ shop, items: shopItems }) => (
+                  <div key={shop.id}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ fontSize: 18 }}>{shop.logo}</span>
+                      <Link to={`/shop/${shop.id}`} style={{ fontWeight: 600, fontSize: 14 }}>{shop.name}</Link>
                     </div>
-                  )
-                })}
+                    {shopItems.map((it) => {
+                      const prod = resolveProduct(it.productId)
+                      return (
+                        <div key={it.key} style={{ display: 'flex', gap: 12, padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
+                          <img src={prod.image} alt={prod.name} style={{ width: 64, height: 64, objectFit: 'cover', borderRadius: 6 }} />
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.name}</div>
+                            <div style={{ fontSize: 12, color: '#666', marginTop: 3 }}>{it.skuLabels.join(' / ')} × {it.qty}</div>
+                          </div>
+                          <span style={{ fontSize: 14 }}>¥{it.price * it.qty}</span>
+                        </div>
+                      )
+                    })}
+                  </div>
+                ))}
 
                 <div style={{ padding: '12px 16px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 12 }}>

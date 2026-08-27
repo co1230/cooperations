@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
-import { products } from '../mock/data'
+import { products, getShopById } from '../mock/data'
 import { load, save } from '../utils/store'
 import Rating from '../components/Rating'
 import { useCart } from '../components/CartContext'
@@ -17,6 +17,7 @@ export default function ProductDetail() {
   const [toast, setToast] = useState('')
 
   const isFav = favorites.some((f) => f.id === product?.id)
+  const shop = product ? getShopById(product.shopId) : null
 
   // 支持单元：展示当前选择是否可用的组合
   const combos = product?.combos || []
@@ -104,6 +105,20 @@ export default function ProductDetail() {
       <div style={{ fontSize: 13, color: '#999', marginBottom: 16 }}>
         <Link to="/">首页</Link> / <Link to={`/category?id=${product.categoryId}`}>{product.category}</Link> / {product.name}
       </div>
+
+      {/* 店铺信息 */}
+      {shop && (
+        <Link to={`/shop/${shop.id}`} className="card" style={{ display: 'flex', alignItems: 'center', gap: 14, padding: 14, marginBottom: 16 }}>
+          <div style={{ fontSize: 34, width: 56, height: 56, background: '#f5f5f5', borderRadius: 12, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            {shop.logo}
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontWeight: 700, fontSize: 15 }}>{shop.name}</div>
+            <div style={{ fontSize: 12, color: '#999', marginTop: 4 }}>{shop.slogan} · 好评率 {product.positive}% · 粉丝 {shop.followers.toLocaleString()}</div>
+          </div>
+          <span style={{ color: 'var(--primary)', fontSize: 14 }}>进店逛逛 ›</span>
+        </Link>
+      )}
 
       <div className="card" style={{ display: 'flex', gap: 28, flexWrap: 'wrap' }}>
         {/* 图片 */}
