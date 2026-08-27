@@ -16,7 +16,7 @@ from routers import (
     category,
     logs,
     user_manage,
-    product       # ⭐新增商品模块
+    product       
 )
 
 from tasks.after_sale_task import start_scheduler, stop_scheduler
