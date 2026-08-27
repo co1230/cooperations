@@ -1,9 +1,10 @@
 from datetime import datetime, timedelta
 from typing import List, Optional, Tuple
 
-from sqlalchemy import func, or_, select
+from sqlalchemy import func, or_, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from models.order import Order
 from models.user import User
 
 
@@ -43,6 +44,16 @@ async def ban_user(db: AsyncSession, user: User, reason: str, duration_hours: in
     user.ban_until = datetime.now() + timedelta(hours=duration_hours) if duration_hours > 0 else None
     user.updated_at = datetime.now()
     return user
+
+
+async def close_unpaid_orders(db: AsyncSession, user: User) -> int:
+    """关闭用户的待付款订单（状态 0 → 5 已关闭），返回关闭数量"""
+    result = await db.execute(
+        update(Order)
+        .where(Order.user_id == user.id, Order.status == 0)
+        .values(status=5, updated_at=datetime.now())
+    )
+    return result.rowcount or 0
 
 
 async def unban_user(db: AsyncSession, user: User) -> User:

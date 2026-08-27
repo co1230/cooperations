@@ -7,7 +7,8 @@ from config.db_conf import get_db
 from crud import after_sale as after_sale_crud
 from crud import operation_log as log_crud
 from models.admin import Admin
-from schemas.after_sale import AfterSaleHandleRequest
+from models.order import Order
+from schemas.after_sale import AfterSaleHandleRequest, AfterSaleListResponse
 from utils.auth import get_client_ip, get_current_admin
 from utils.exception import BizException
 from utils.response import success_response
@@ -24,7 +25,9 @@ async def get_after_sale_list(
         admin: Admin = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
-    total, list_data = await after_sale_crud.get_after_sale_list(db, status, type_, page, page_size)
+    total, raw_list = await after_sale_crud.get_after_sale_list(db, status, type_, page, page_size)
+    # 统一走 Pydantic 校验后再响应
+    list_data = [AfterSaleListResponse(**item) for item in raw_list]
     return success_response(message="获取售后单列表成功", data={"total": total, "list": list_data})
 
 
@@ -74,6 +77,14 @@ async def refund(
         raise BizException("售后单不存在")
     if after_sale.status not in (0, 1):
         raise BizException("当前状态不允许强制退款")
+    # 订单状态防线：已关闭/待付款的订单不可退款，已退款的订单不可重复退款
+    order = await db.get(Order, after_sale.order_id)
+    if not order:
+        raise BizException("关联订单不存在")
+    if order.status == 4:
+        raise BizException("订单已退款，不能重复退款")
+    if order.status in (0, 5):
+        raise BizException("订单当前状态不允许退款")
     result_text = handle_data.result if handle_data and handle_data.result else "管理员强制退款"
     await after_sale_crud.refund(db, after_sale, result_text)
     await log_crud.create_log(

@@ -104,7 +104,8 @@ const actionOptions = [
   '平台介入',
   '强制退款',
   '关闭争议',
-  '超时自动介入'
+  '超时自动介入',
+  '封禁到期自动解封'
 ]
 
 async function fetchStats() {

@@ -53,7 +53,14 @@
         <el-table-column prop="after_sale_no" label="售后单号" min-width="140" />
         <el-table-column prop="order_no" label="订单号" min-width="130" />
         <el-table-column prop="product_name" label="商品" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="username" label="申请用户" width="100" />
+        <el-table-column label="申请用户" width="130">
+          <template #default="{ row }">
+            {{ row.username }}
+            <el-tag v-if="row.user_status === 1" type="danger" size="small" class="banned-tag">
+              已封禁
+            </el-tag>
+          </template>
+        </el-table-column>
         <el-table-column label="类型" width="80" align="center">
           <template #default="{ row }">
             <el-tag size="small" :type="row.type === 'return' ? 'warning' : 'primary'">
@@ -307,5 +314,9 @@ onMounted(() => {
 .no-action {
   color: #909399;
   font-size: 13px;
+}
+
+.banned-tag {
+  margin-left: 4px;
 }
 </style>

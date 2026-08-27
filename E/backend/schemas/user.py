@@ -10,6 +10,9 @@ class UserBanRequest(BaseModel):
     ban_duration_hours: int = Field(
         0, ge=0, description="封禁时长（小时），0表示永久封禁"
     )
+    close_unpaid_orders: bool = Field(
+        False, description="是否同时关闭该用户的待付款订单（已付款订单和售后单不受影响）"
+    )
 
 
 class UserManageResponse(BaseModel):

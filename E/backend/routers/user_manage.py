@@ -44,11 +44,18 @@ async def ban_user(
     if user.status == 1:
         raise BizException("该用户已被封禁")
     await user_crud.ban_user(db, user, ban_data.ban_reason, ban_data.ban_duration_hours)
+    # 联动：可选关闭该用户的待付款订单（已付款订单和售后单不受影响，继续流转）
+    closed_count = 0
+    if ban_data.close_unpaid_orders:
+        closed_count = await user_crud.close_unpaid_orders(db, user)
     duration_text = f"{ban_data.ban_duration_hours}小时" if ban_data.ban_duration_hours > 0 else "永久"
+    detail = f"封禁用户 {user.username}，原因：{ban_data.ban_reason}，时长：{duration_text}"
+    if closed_count:
+        detail += f"，同时关闭其 {closed_count} 笔待付款订单"
     await log_crud.create_log(
         db, admin.id, admin.username, "封禁用户",
         target_type="user", target_id=user.id,
-        detail=f"封禁用户 {user.username}，原因：{ban_data.ban_reason}，时长：{duration_text}",
+        detail=detail,
         ip=get_client_ip(request)
     )
     return success_response(message="封禁成功")

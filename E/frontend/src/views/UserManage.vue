@@ -103,6 +103,11 @@
             <el-option label="永久封禁" :value="0" />
           </el-select>
         </el-form-item>
+        <el-form-item label="存量订单">
+          <el-checkbox v-model="banForm.close_unpaid_orders">
+            同时关闭该用户的待付款订单（已付款订单与售后单不受影响，将继续流转）
+          </el-checkbox>
+        </el-form-item>
       </el-form>
       <template #footer>
         <el-button @click="banDialogVisible = false">取消</el-button>
@@ -128,7 +133,7 @@ const banFormRef = ref()
 const currentUser = ref(null)
 
 const query = reactive({ page: 1, page_size: 10, keyword: '', status: '' })
-const banForm = reactive({ ban_reason: '', ban_duration_hours: 24 })
+const banForm = reactive({ ban_reason: '', ban_duration_hours: 24, close_unpaid_orders: false })
 const banRules = {
   ban_reason: [{ required: true, message: '请输入封禁原因', trigger: 'blur' }],
   ban_duration_hours: [{ required: true, message: '请选择封禁时长', trigger: 'change' }]
@@ -164,6 +169,7 @@ function openBanDialog(row) {
   currentUser.value = row
   banForm.ban_reason = ''
   banForm.ban_duration_hours = 24
+  banForm.close_unpaid_orders = false
   banDialogVisible.value = true
 }
 

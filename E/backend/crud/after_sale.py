@@ -27,7 +27,7 @@ async def get_after_sale_list(
     total = await db.scalar(select(func.count()).select_from(AfterSale).where(*filters))
 
     stmt = (
-        select(AfterSale, Order.order_no, Order.product_name, User.username)
+        select(AfterSale, Order.order_no, Order.product_name, User.username, User.status.label("user_status"))
         .join(Order, AfterSale.order_id == Order.id)
         .join(User, AfterSale.user_id == User.id)
         .where(*filters)
@@ -46,6 +46,7 @@ async def get_after_sale_list(
             "order_no": row.order_no,
             "product_name": row.product_name,
             "username": row.username,
+            "user_status": row.user_status,
             "type": item.type,
             "reason": item.reason,
             "status": item.status,

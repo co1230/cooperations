@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import jwt
@@ -18,7 +18,8 @@ ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24  # 令牌有效期：24小时
 def create_access_token(data: dict) -> str:
     """生成 JWT 令牌"""
     to_encode = data.copy()
-    expire = datetime.now() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    # 注意：exp 必须使用 UTC 时间，PyJWT 会将无时区时间按 UTC 解释，否则有效期会偏差
+    expire = datetime.now(timezone.utc) + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 

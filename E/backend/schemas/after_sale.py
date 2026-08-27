@@ -16,6 +16,7 @@ class AfterSaleListResponse(BaseModel):
     order_no: str
     product_name: str
     username: str
+    user_status: int
     type: str
     reason: str
     status: int
