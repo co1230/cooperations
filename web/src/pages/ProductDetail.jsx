@@ -1,12 +1,15 @@
 import { useMemo, useState } from 'react'
-import { useParams, Link } from 'react-router-dom'
+import { useParams, Link, useNavigate } from 'react-router-dom'
 import { products } from '../mock/data'
-import { load, save, uid } from '../utils/store'
+import { load, save } from '../utils/store'
 import Rating from '../components/Rating'
+import { useCart } from '../components/CartContext'
 
 export default function ProductDetail() {
   const { id } = useParams()
+  const navigate = useNavigate()
   const product = products.find((p) => p.id === Number(id))
+  const { addToCart } = useCart()
 
   const [selected, setSelected] = useState({})
   const [reviewsFilter, setReviewsFilter] = useState('all')
@@ -60,6 +63,31 @@ export default function ProductDetail() {
 
   const availStock = currentCombo ? currentCombo.stock : 0
   const displayPrice = currentCombo ? currentCombo.price : product.price
+
+  const selectedLabels = product.skus.map((s) => selected[s.specName]).filter(Boolean)
+
+  const handleAction = (kind) => {
+    if (selectedLabels.length < product.skus.length) {
+      alert('请先选择完整规格')
+      return
+    }
+    if (availStock <= 0) {
+      alert('该规格已售罄，请选择其他规格')
+      return
+    }
+    const added = addToCart({
+      productId: product.id,
+      skuLabels: selectedLabels,
+      price: currentCombo.price,
+      qty: 1,
+      maxStock: availStock,
+    })
+    if (kind === 'cart') {
+      showToast('已加入购物车')
+    } else {
+      navigate('/checkout', { state: { fromBuyNow: { key: added } } })
+    }
+  }
 
   const filteredReviews = useMemo(() => {
     if (!product) return []
@@ -148,12 +176,15 @@ export default function ProductDetail() {
             <button className="btn ghost" onClick={toggleFav} style={{ padding: '10px 24px' }}>
               {isFav ? '♥ 已收藏' : '♡ 收藏'}
             </button>
-            <span className="btn" style={{ padding: '10px 24px', opacity: 0.6, cursor: 'not-allowed' }} title="交易功能由成员C负责">
-              加入购物车（待成员 C 对接）
-            </span>
+            <button className="btn ghost" onClick={() => handleAction('cart')} style={{ padding: '10px 24px' }}>
+              加入购物车
+            </button>
+            <button className="btn" onClick={() => handleAction('buy')} style={{ padding: '10px 24px', flex: 1 }}>
+              立即购买
+            </button>
           </div>
           <div style={{ marginTop: 12, fontSize: 12, color: '#999' }}>
-            * 购物车 / 下单 / 支付属于交易流程模块，由成员 C 负责，此处仅为页面入口预留。
+            * 演示环境中购物车 / 下单 / 支付为模拟实现（不真实扣款），正式由交易流程负责人（成员 C）对接。
           </div>
         </div>
       </div>

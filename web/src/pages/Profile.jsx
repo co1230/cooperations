@@ -1,10 +1,13 @@
 import { Link } from 'react-router-dom'
 import { currentUser } from '../mock/data'
 import { load } from '../utils/store'
+import { useCart } from '../components/CartContext'
 
 export default function Profile() {
   const favCount = load('favorites', []).length
   const addrCount = load('address', []).length
+  const { cart, orders } = useCart()
+  const cartCount = cart.reduce((s, i) => s + i.qty, 0)
 
   return (
     <div className="page">
@@ -31,11 +34,17 @@ export default function Profile() {
           <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>已收藏 {favCount} 件商品</div>
         </Link>
 
-        <div className="card" style={{ opacity: 0.7 }}>
+        <Link to="/cart" className="card" style={{ textDecoration: 'none', display: 'block' }}>
+          <div style={{ fontSize: 28, marginBottom: 8 }}>🛒</div>
+          <div style={{ fontSize: 15, fontWeight: 600 }}>购物车</div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>共 {cartCount} 件商品</div>
+        </Link>
+
+        <Link to="/orders" className="card" style={{ textDecoration: 'none', display: 'block' }}>
           <div style={{ fontSize: 28, marginBottom: 8 }}>📦</div>
           <div style={{ fontSize: 15, fontWeight: 600 }}>我的订单</div>
-          <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>订单查看 / 取消 / 退款由成员 C 负责</div>
-        </div>
+          <div style={{ fontSize: 13, color: '#999', marginTop: 4 }}>共 {orders.length} 笔订单 · 查看 / 取消 / 退款</div>
+        </Link>
       </div>
     </div>
   )
