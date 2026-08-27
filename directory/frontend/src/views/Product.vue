@@ -2,14 +2,22 @@
   <div class="product-page">
 
     <el-card>
+
       <template #header>
+
         <div class="header">
+
           <span>商品管理</span>
 
-          <el-button type="primary">
-            新增商品
+          <el-button
+            type="primary"
+            @click="loadProducts"
+          >
+            刷新商品
           </el-button>
+
         </div>
+
       </template>
 
 
@@ -22,18 +30,22 @@
           style="width:220px"
         />
 
-        <el-button type="primary">
+        <el-button
+          type="primary"
+          @click="loadProducts"
+        >
           搜索
         </el-button>
 
       </div>
 
 
-      <!-- 商品表格 -->
+
+      <!-- 商品列表 -->
+
       <el-table
         :data="productList"
         border
-        style="width:100%"
       >
 
         <el-table-column
@@ -41,6 +53,7 @@
           label="ID"
           width="80"
         />
+
 
         <el-table-column
           prop="name"
@@ -64,6 +77,7 @@
           prop="status"
           label="状态"
         >
+
           <template #default="scope">
 
             <el-tag
@@ -73,6 +87,7 @@
               上架
             </el-tag>
 
+
             <el-tag
               v-else
               type="danger"
@@ -80,35 +95,33 @@
               下架
             </el-tag>
 
+
           </template>
 
         </el-table-column>
+
 
 
         <el-table-column
           label="操作"
-          width="180"
         >
 
-          <template #default>
+          <template #default="scope">
 
             <el-button
-              size="small"
-            >
-              编辑
-            </el-button>
-
-
-            <el-button
-              size="small"
               type="danger"
+              size="small"
+              @click="removeProduct(scope.row.id)"
             >
               删除
             </el-button>
 
+
           </template>
 
+
         </el-table-column>
+
 
 
       </el-table>
@@ -124,30 +137,93 @@
 
 <script setup>
 
-import { ref } from "vue"
+import { ref,onMounted } from "vue"
+
+import {
+  getProductList,
+  deleteProduct
+} from "../api/product"
+
 
 
 // 搜索关键字
-const keyword = ref("")
+
+const keyword = ref("");
+
 
 
 // 商品数据
-const productList = ref([
-  {
-    id:1,
-    name:"苹果 iPhone 16",
-    price:7999,
-    stock:20,
-    status:1
-  },
-  {
-    id:2,
-    name:"华为 Mate 70",
-    price:5999,
-    stock:15,
-    status:0
+
+const productList = ref([])
+
+
+
+// 加载商品
+
+async function loadProducts(){
+
+
+  try{
+
+
+    const res = await getProductList({
+
+      keyword:keyword.value,
+
+      page:1,
+
+      page_size:10
+
+    })
+
+
+    /*
+      根据你的后端返回结构调整
+
+      可能:
+      res.data.data.list
+
+      或:
+      res.data.list
+    */
+
+
+    productList.value =
+      res.data.data.list || []
+
+
+  }catch(error){
+
+    console.log("获取商品失败",error)
+
   }
-])
+
+
+}
+
+
+
+// 删除商品
+
+async function removeProduct(id){
+
+
+  await deleteProduct(id)
+
+
+  loadProducts()
+
+}
+
+
+
+// 页面打开自动加载
+
+onMounted(()=>{
+
+  loadProducts()
+
+})
 
 
 </script>
@@ -156,23 +232,37 @@ const productList = ref([
 
 <style scoped>
 
+
 .product-page{
+
   padding:20px;
+
 }
+
 
 
 .header{
+
   display:flex;
+
   justify-content:space-between;
+
   align-items:center;
+
 }
+
 
 
 .search-area{
+
   margin-bottom:20px;
+
   display:flex;
+
   gap:10px;
+
 }
+
 
 
 </style>
