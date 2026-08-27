@@ -23,6 +23,7 @@ function setup() {
   context.loadDashboardOrders = () => {};
   context.loadHomeOrders = () => {};
   context.loadAdminPage = () => {};
+  context.loadMerchantProducts = () => {};
   context.buyerOrdersView = () => {orderVisits++;};
   return {context,app,nodes,orderVisits:()=>orderVisits};
 }
@@ -38,6 +39,9 @@ test('all dashboard nav items render matching content and active state', () => {
       if (index===0 || ['订单管理','订单监管'].includes(config.nav[index])) assert.match(app.innerHTML,/id="dashboardOrders"/);
       else if(role==='ADMIN' && ['用户管理','商家审核'].includes(config.nav[index])) {
         assert.match(app.innerHTML,/id="adminPage"/);
+        assert.doesNotMatch(app.innerHTML,/页面（开发中）/);
+      } else if(role==='MERCHANT' && config.nav[index]==='商品管理') {
+        assert.match(app.innerHTML,/id="merchantProducts"/);
         assert.doesNotMatch(app.innerHTML,/页面（开发中）/);
       } else {
         assert.ok(app.innerHTML.includes(`${config.nav[index]}页面（开发中）`));
@@ -58,7 +62,7 @@ test('sidebar click changes page; back returns overview; buyer order entry stays
   };
   context.dashboard({role:'MERCHANT',name:'商家'});
   buttons[1].onclick();
-  assert.match(app.innerHTML,/商品管理页面（开发中）/);
+  assert.match(app.innerHTML,/id="merchantProducts"/);
   nodes.get('#backOverview').onclick();
   assert.match(app.innerHTML,/经营概览/);
   assert.doesNotMatch(app.innerHTML,/商品管理页面（开发中）/);

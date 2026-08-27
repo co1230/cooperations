@@ -6,7 +6,7 @@ const productCatalog = [
   {id:104,merchant_id:2,name:'原木桌面收纳架',description:'北美黑胡桃 · 手工打磨',price:119,original_price:149,icon:'▱',tag:'口碑',background:'#eadfd3'},
   {id:105,merchant_id:2,name:'轻氧保温杯',description:'316不锈钢 · 450ml',price:129,original_price:159,icon:'◉',tag:'推荐',background:'#dee9ea'},
   {id:106,merchant_id:2,name:'亚麻午睡毯',description:'亲肤透气 · 四季可用',price:169,original_price:209,icon:'⌁',tag:'舒适',background:'#e8e2d7'}
-];
+].map((product,index)=>({...product,sku:`PRODUCT-${product.id}`,stock:[80,35,60,45,120,70][index],product_status:'ON_SALE'}));
 const orderApi = (() => {
   const key = 'ecom_order_db_v1';
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -84,6 +84,10 @@ const orderApi = (() => {
     return result;
   }
   return {
+    listMerchantProducts: () => request(user => {
+      if (user.role !== 'MERCHANT') throw new Error('仅商家可查看店铺商品');
+      return copy(productCatalog.filter(product => product.merchant_id === user.id));
+    }),
     getCart: () => request(user => cartView(read(), user)),
     addToCart: productId => request(user => {
       const db = read(), cart = buyerCart(db, user);

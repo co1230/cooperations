@@ -65,3 +65,27 @@ test('rejection requires reason, persists and prevents login',async()=>{
   assert.equal((await api.listUsers()).find(user=>user.id===5).merchant_application.review_note,'资料不全');
   assert.throws(()=>api.authenticate('apply2@demo.com','123456'),/已被拒绝/);
 });
+
+test('merchant product list uses shared catalog and isolates new shops',async()=>{
+  const {api,orders,login,context}=setup();
+  login(2);
+  const products=await orders.listMerchantProducts();
+  assert.equal(products.length,6);
+  assert.ok(products.every(product=>product.merchant_id===2&&product.sku&&Number.isInteger(product.stock)));
+  assert.equal(products[0].price,128);
+  products[0].price=1;
+  assert.equal((await orders.listMerchantProducts())[0].price,128);
+  vm.runInContext(fs.readFileSync(path.join(__dirname,'..','merchant.js'),'utf8'),context);
+  assert.match(context.merchantProductRows(products),/手冲咖啡分享壶/);
+  assert.match(context.merchantProductRows(products),/在售/);
+  login(3);
+  await api.reviewMerchant(4,'APPROVED');
+  login(4);
+  assert.equal((await orders.listMerchantProducts()).length,0);
+  login(1);
+  await assert.rejects(orders.listMerchantProducts(),/仅商家/);
+  login(3);
+  await api.setStatus(2,'DISABLED');
+  login(2);
+  await assert.rejects(orders.listMerchantProducts(),/封禁/);
+});
