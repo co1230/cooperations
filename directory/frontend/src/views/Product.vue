@@ -2,7 +2,6 @@
 
 <div class="product-page">
 
-
 <el-card>
 
 
@@ -31,7 +30,6 @@ type="primary"
 
 <div class="search-area">
 
-
 <el-input
 v-model="keyword"
 placeholder="请输入商品名称"
@@ -52,8 +50,7 @@ type="primary"
 
 
 
-<!-- 表格 -->
-
+<!-- 商品表格 -->
 
 <el-table
 :data="productList"
@@ -68,16 +65,33 @@ width="80"
 />
 
 
+
 <el-table-column
 prop="name"
 label="商品名称"
 />
 
 
+
+<el-table-column
+prop="category_id"
+label="分类ID"
+/>
+
+
+
+<el-table-column
+prop="brand_id"
+label="品牌ID"
+/>
+
+
+
 <el-table-column
 prop="price"
 label="价格"
 />
+
 
 
 <el-table-column
@@ -88,7 +102,6 @@ label="库存"
 
 
 <el-table-column
-prop="status"
 label="状态"
 >
 
@@ -157,6 +170,7 @@ type="danger"
 
 
 
+
 <!-- 分页 -->
 
 <div class="pagination">
@@ -182,8 +196,6 @@ v-model:current-page="page"
 </div>
 
 
-
-
 </el-card>
 
 
@@ -207,6 +219,30 @@ width="500px"
 <el-form :model="form">
 
 
+
+<el-form-item label="分类ID">
+
+<el-input-number
+v-model="form.category_id"
+/>
+
+</el-form-item>
+
+
+
+
+<el-form-item label="品牌ID">
+
+<el-input-number
+v-model="form.brand_id"
+/>
+
+</el-form-item>
+
+
+
+
+
 <el-form-item label="商品名称">
 
 <el-input
@@ -217,30 +253,75 @@ v-model="form.name"
 
 
 
-<el-form-item label="价格">
 
-<el-input-number
-v-model="form.price"
+<el-form-item label="商品描述">
+
+<el-input
+
+v-model="form.description"
+
+type="textarea"
+
 />
 
 </el-form-item>
+
+
+
+
+
+<el-form-item label="价格">
+
+<el-input-number
+
+v-model="form.price"
+
+:min="0"
+
+/>
+
+</el-form-item>
+
+
 
 
 
 <el-form-item label="库存">
 
 <el-input-number
+
 v-model="form.stock"
+
+:min="0"
+
 />
 
 </el-form-item>
 
 
 
+
+
+<el-form-item label="图片URL">
+
+<el-input
+
+v-model="form.image"
+
+/>
+
+</el-form-item>
+
+
+
+
+
 <el-form-item label="状态">
 
 
-<el-select v-model="form.status">
+<el-select
+v-model="form.status"
+>
 
 
 <el-option
@@ -262,7 +343,10 @@ label="下架"
 
 
 
+
 </el-form>
+
+
 
 
 
@@ -270,21 +354,28 @@ label="下架"
 
 
 <el-button
+
 @click="dialogVisible=false"
+
 >
 取消
 </el-button>
 
 
+
 <el-button
+
 type="primary"
+
 @click="submitForm"
+
 >
 确定
 </el-button>
 
 
 </template>
+
 
 
 </el-dialog>
@@ -312,19 +403,29 @@ onMounted
 
 
 import {
+
 getProductList,
+
 createProduct,
+
 updateProduct,
+
 deleteProduct
+
 }
+
 from "../api/product"
 
 
 
 import {
+
 ElMessage,
+
 ElMessageBox
+
 }
+
 from "element-plus"
 
 
@@ -337,7 +438,7 @@ const productList = ref([])
 
 
 
-// 搜索
+// 搜索关键词
 
 const keyword = ref("")
 
@@ -359,22 +460,31 @@ const total = ref(0)
 
 const dialogVisible = ref(false)
 
-
 const dialogTitle = ref("新增商品")
 
 
 
-// 当前表单
+
+
+// 表单
 
 const form = ref({
 
 id:null,
 
+category_id:1,
+
+brand_id:1,
+
 name:"",
+
+description:"",
 
 price:0,
 
 stock:0,
+
+image:"",
 
 status:1
 
@@ -384,13 +494,12 @@ status:1
 
 
 
-// 获取商品
+// 加载商品列表
 
 async function loadProducts(){
 
 
-const res =
-await getProductList({
+const res = await getProductList({
 
 keyword:keyword.value,
 
@@ -403,13 +512,14 @@ page_size:pageSize.value
 
 
 productList.value =
+
 res.data.data.list || []
 
 
 
 total.value =
-res.data.data.total || 0
 
+res.data.data.total || 0
 
 
 }
@@ -418,7 +528,8 @@ res.data.data.total || 0
 
 
 
-// 打开新增
+
+// 打开新增弹窗
 
 function openAddDialog(){
 
@@ -426,19 +537,29 @@ function openAddDialog(){
 dialogTitle.value="新增商品"
 
 
+
 form.value={
 
 id:null,
 
+category_id:1,
+
+brand_id:1,
+
 name:"",
+
+description:"",
 
 price:0,
 
 stock:0,
 
+image:"",
+
 status:1
 
 }
+
 
 
 dialogVisible.value=true
@@ -450,7 +571,8 @@ dialogVisible.value=true
 
 
 
-// 打开编辑
+
+// 编辑商品
 
 function openEditDialog(row){
 
@@ -458,7 +580,13 @@ function openEditDialog(row){
 dialogTitle.value="编辑商品"
 
 
-form.value={...row}
+
+form.value={
+
+...row
+
+}
+
 
 
 dialogVisible.value=true
@@ -470,14 +598,17 @@ dialogVisible.value=true
 
 
 
-// 提交
+
+
+// 提交表单
 
 async function submitForm(){
 
 
+try{
+
 
 if(form.value.id){
-
 
 
 await updateProduct(
@@ -489,7 +620,9 @@ form.value
 )
 
 
-ElMessage.success("修改成功")
+ElMessage.success(
+"修改成功"
+)
 
 
 }else{
@@ -502,7 +635,9 @@ form.value
 )
 
 
-ElMessage.success("新增成功")
+ElMessage.success(
+"新增成功"
+)
 
 
 }
@@ -515,16 +650,31 @@ dialogVisible.value=false
 loadProducts()
 
 
+
+}catch(error){
+
+
+ElMessage.error(
+"操作失败"
+)
+
+
+}
+
+
 }
 
 
 
 
 
-// 删除
+
+// 删除商品
 
 async function removeProduct(id){
 
+
+try{
 
 
 await ElMessageBox.confirm(
@@ -547,13 +697,26 @@ await deleteProduct(id)
 
 
 
-ElMessage.success("删除成功")
+ElMessage.success(
+
+"删除成功"
+
+)
+
 
 
 loadProducts()
 
 
+
+}catch(error){
+
+
+
 }
+
+}
+
 
 
 
@@ -617,9 +780,6 @@ display:flex;
 justify-content:center;
 
 }
-
-
-</style>
 
 
 
