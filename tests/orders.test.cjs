@@ -6,6 +6,76 @@ const path = require('node:path');
 const source = fs.readFileSync(path.join(__dirname, '..', 'mock-api.js'), 'utf8');
 const refundPayload = {ticket_type: 'REFUND_ONLY', reason: '商品不合适', requested_amount: '50.25', evidence_urls: []};
 const evidencePng = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+aX9kAAAAASUVORK5CYII=';
+test('cart merges product quantities, persists and isolates buyers', async () => {
+  const {api, login} = setup();
+  await api.addToCart(101);
+  assert.equal((await api.addToCart(101)).items[0].quantity, 2);
+  assert.equal((await api.getCart()).total, 256);
+  login(999);
+  assert.equal((await api.getCart()).items.length, 0);
+  await api.addToCart(102);
+  login(1);
+  assert.equal((await api.getCart()).items[0].product_id, 101);
+  login(2, 'MERCHANT');
+  await assert.rejects(api.addToCart(101), /仅买家/);
+});
+test('cart quantity, selection, removal and invalid product checks', async () => {
+  const {api} = setup();
+  await assert.rejects(api.addToCart(987), /不存在/);
+  await api.addToCart(101);
+  for (const quantity of [0, -1, 1.5, 100]) await assert.rejects(api.updateCart(101, {quantity}), /数量/);
+  assert.equal((await api.updateCart(101, {quantity:99})).count, 99);
+  await assert.rejects(api.addToCart(101), /最多/);
+  await api.updateCart(101, {quantity:2});
+  assert.equal((await api.selectCart(false)).total, 0);
+  await assert.rejects(api.checkoutCart(), /勾选/);
+  assert.equal((await api.selectCart(true)).total, 256);
+  assert.equal((await api.removeFromCart(101)).items.length, 0);
+});
+test('checkout only selected items, then payment and refund use the created order', async () => {
+  const {api, login, db} = setup();
+  login(999);
+  await api.addToCart(101);
+  await api.addToCart(101);
+  await api.addToCart(102);
+  await api.updateCart(102, {selected:false});
+  const orders = await api.checkoutCart();
+  assert.equal(orders.length, 1);
+  assert.equal(orders[0].total_amount, 256);
+  assert.equal(orders[0].buyer_id, 999);
+  assert.equal(orders[0].items[0].quantity, 2);
+  assert.equal(orders[0].order_status, 'PENDING_PAYMENT');
+  assert.equal((await api.getCart()).items[0].product_id, 102);
+  await assert.rejects(api.checkoutCart(), /勾选/);
+  await api.payOrder(orders[0].id);
+  assert.equal((await api.listOrders())[0].order_status, 'PAID');
+  await api.applyRefund(orders[0].id, refundPayload);
+  assert.equal((await api.listOrders())[0].after_sale_status, 'APPLIED');
+  assert.equal(db().orders.filter(order => order.buyer_id === 999).length, 1);
+});
+test('checkout persistence failure keeps cart and orders unchanged', async () => {
+  const {api, data, db} = setup();
+  await api.addToCart(105);
+  const context = vm.createContext({setTimeout, sessionStorage:{getItem:() => JSON.stringify({id:1,role:'BUYER'})},
+    localStorage:{getItem:key => data.get(key),setItem:() => {throw Error('Storage full');}}});
+  vm.runInContext(source, context);
+  await assert.rejects(vm.runInContext('orderApi', context).checkoutCart(), /Storage full/);
+  assert.equal(db().orders.length, 4);
+  assert.equal((await api.getCart()).count, 1);
+});
+test('cart renderer has quantity, selection, checkout and empty states', async () => {
+  const {api} = setup();
+  const context = vm.createContext({});
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'orders.js'), 'utf8'), context);
+  vm.runInContext(fs.readFileSync(path.join(__dirname, '..', 'cart.js'), 'utf8'), context);
+  const render = vm.runInContext('cartContents', context);
+  assert.match(render(await api.getCart()), /购物车还是空的/);
+  const html = render(await api.addToCart(101));
+  assert.match(html, /data-select-cart="101"/);
+  assert.match(html, /data-quantity="2"/);
+  assert.match(html, /结算（生成待付款订单）/);
+  assert.match(html, /128.00/);
+});
 function setup(legacy) {
   const data = new Map(legacy ? [['demo_order', JSON.stringify(legacy)]] : []);
   const sessions = new Map();

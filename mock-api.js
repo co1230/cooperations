@@ -1,4 +1,12 @@
 // Promise-based mock API. Replace these methods with HTTP requests for production.
+const productCatalog = [
+  {id:101,merchant_id:2,name:'手冲咖啡分享壶',description:'耐热玻璃 · 600ml',price:128,original_price:159,icon:'☕',tag:'热卖',background:'#efe8db'},
+  {id:102,merchant_id:2,name:'月影氛围台灯',description:'三档暖光 · 无级调节',price:219,original_price:269,icon:'◒',tag:'新品',background:'#e6e3d8'},
+  {id:103,merchant_id:2,name:'云感香薰加湿器',description:'静音运行 · 细腻雾化',price:169,original_price:199,icon:'♨',tag:'精选',background:'#dde9e4'},
+  {id:104,merchant_id:2,name:'原木桌面收纳架',description:'北美黑胡桃 · 手工打磨',price:119,original_price:149,icon:'▱',tag:'口碑',background:'#eadfd3'},
+  {id:105,merchant_id:2,name:'轻氧保温杯',description:'316不锈钢 · 450ml',price:129,original_price:159,icon:'◉',tag:'推荐',background:'#dee9ea'},
+  {id:106,merchant_id:2,name:'亚麻午睡毯',description:'亲肤透气 · 四季可用',price:169,original_price:209,icon:'⌁',tag:'舒适',background:'#e8e2d7'}
+];
 const orderApi = (() => {
   const key = 'ecom_order_db_v1';
   const copy = value => JSON.parse(JSON.stringify(value));
@@ -54,7 +62,87 @@ const orderApi = (() => {
     if (caller.id !== current.id || caller.role !== current.role) throw new Error('登录状态已变更，请重新操作');
     return action(current);
   }
+  function buyerCart(db, user) {
+    if (user.role !== 'BUYER') throw new Error('仅买家可使用购物车');
+    db.carts ??= {};
+    return db.carts[user.id] ??= [];
+  }
+  function cartView(db, user) {
+    const items = buyerCart(db, user).map(item => {
+      const product = productCatalog.find(product => product.id === item.product_id);
+      if (!product) throw new Error('购物车商品不存在');
+      return {...item, product: copy(product), subtotal: Math.round(product.price * 100) * item.quantity / 100};
+    });
+    return {items, count: items.reduce((sum, item) => sum + item.quantity, 0),
+      selected_count: items.filter(item => item.selected).reduce((sum, item) => sum + item.quantity, 0),
+      total: items.filter(item => item.selected).reduce((sum, item) => sum + Math.round(item.subtotal * 100), 0) / 100};
+  }
+  function saveCart(db, user) {
+    const result = cartView(db, user);
+    localStorage.setItem(key, JSON.stringify(db));
+    return result;
+  }
   return {
+    getCart: () => request(user => cartView(read(), user)),
+    addToCart: productId => request(user => {
+      const db = read(), cart = buyerCart(db, user);
+      if (!productCatalog.some(product => product.id === productId)) throw new Error('商品不存在');
+      const item = cart.find(item => item.product_id === productId);
+      if (item) {
+        if (item.quantity >= 99) throw new Error('每件商品最多购买 99 件');
+        item.quantity += 1;
+      } else cart.push({product_id: productId, quantity: 1, selected: true});
+      return saveCart(db, user);
+    }),
+    updateCart: (productId, patch) => request(user => {
+      const db = read(), cart = buyerCart(db, user);
+      const item = cart.find(item => item.product_id === productId);
+      if (!item) throw new Error('购物车商品不存在，请刷新');
+      if (patch.quantity !== undefined) {
+        if (!Number.isInteger(patch.quantity) || patch.quantity < 1 || patch.quantity > 99) throw new Error('数量必须为 1–99 的整数');
+        item.quantity = patch.quantity;
+      }
+      if (patch.selected !== undefined) {
+        if (typeof patch.selected !== 'boolean') throw new Error('勾选状态无效');
+        item.selected = patch.selected;
+      }
+      return saveCart(db, user);
+    }),
+    selectCart: selected => request(user => {
+      if (typeof selected !== 'boolean') throw new Error('勾选状态无效');
+      const db = read();
+      buyerCart(db, user).forEach(item => {item.selected = selected;});
+      return saveCart(db, user);
+    }),
+    removeFromCart: productId => request(user => {
+      const db = read(), cart = buyerCart(db, user);
+      db.carts[user.id] = cart.filter(item => item.product_id !== productId);
+      return saveCart(db, user);
+    }),
+    checkoutCart: () => request(user => {
+      const db = read(), snapshot = cartView(db, user);
+      const selected = snapshot.items.filter(item => item.selected);
+      if (!selected.length) throw new Error('请先勾选要结算的商品');
+      const now = new Date().toISOString(), created = [];
+      for (const merchantId of new Set(selected.map(item => item.product.merchant_id))) {
+        const items = selected.filter(item => item.product.merchant_id === merchantId);
+        const id = Math.max(0, ...db.orders.map(order => order.id)) + 1;
+        const order = {id, order_no: `Q${Date.now()}-${id}`, buyer_id: user.id, merchant_id: merchantId,
+          total_amount: items.reduce((sum, item) => sum + Math.round(item.subtotal * 100), 0) / 100,
+          order_status:'PENDING_PAYMENT', after_sale_status:'NONE', paid_at:null, created_at:now, updated_at:now};
+        db.orders.push(order);
+        for (const item of items) db.order_items.push({id:Math.max(0, ...db.order_items.map(row => row.id)) + 1,
+          order_id:id, product_id:item.product_id, product_name:item.product.name, sku:`PRODUCT-${item.product_id}`,
+          unit_price:item.product.price, quantity:item.quantity, subtotal:item.subtotal});
+        db.order_status_logs.push({id:db.order_status_logs.length + 1, order_id:id, operator_id:user.id,
+          status_type:'ORDER', from_status:null, to_status:'PENDING_PAYMENT', remark:'购物车结算创建订单', created_at:now});
+        created.push(detail(db, order));
+      }
+      db.carts[user.id] = buyerCart(db, user).filter(item => !item.selected);
+      // Persist order creation and cart removal together; failure leaves both unchanged.
+      localStorage.setItem(key, JSON.stringify(db));
+      return created;
+    }),
     listOrders: () => request(user => {
       const db = read();
       return db.orders.filter(order => visible(order, user)).sort((a, b) => b.created_at.localeCompare(a.created_at)).map(order => detail(db, order));
