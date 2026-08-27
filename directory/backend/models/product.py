@@ -1,16 +1,17 @@
 from datetime import datetime
 
 from sqlalchemy import Column, Integer, String, DECIMAL, DateTime
-
 from config.db_conf import Base
 
 
 class Product(Base):
     """
     商品表
-    用于管理员后台商品管理：
+
+    功能：
     - 商品新增
     - 商品编辑
+    - 商品删除
     - 商品上下架
     - 库存管理
     - 商品查询
@@ -29,17 +30,21 @@ class Product(Base):
 
 
     # 所属类目ID
+    # 对应成员E的 category.id
     category_id = Column(
         Integer,
         nullable=False,
+        index=True,
         comment="商品所属类目ID"
     )
 
 
     # 所属品牌ID
+    # 对应成员E的 brand.id
     brand_id = Column(
         Integer,
         nullable=False,
+        index=True,
         comment="商品所属品牌ID"
     )
 
@@ -77,7 +82,7 @@ class Product(Base):
     )
 
 
-    # 商品图片地址
+    # 商品图片
     image = Column(
         String(255),
         nullable=True,
@@ -86,8 +91,8 @@ class Product(Base):
 
 
     # 商品状态
-    # 1：上架
-    # 0：下架
+    # 1 上架
+    # 0 下架
     status = Column(
         Integer,
         nullable=False,
