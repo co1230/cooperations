@@ -8,14 +8,15 @@ from schemas.product import ProductCreate, ProductUpdate
 
 
 
-# ===============================
+# =====================================================
 # 新增商品
-# ===============================
+# =====================================================
 
 async def create_product(
         session: AsyncSession,
         data: ProductCreate
 ):
+
     product = Product(
         **data.model_dump()
     )
@@ -30,9 +31,9 @@ async def create_product(
 
 
 
-# ===============================
-# 商品列表查询
-# ===============================
+# =====================================================
+# 商品列表查询（分页 + 搜索 + 筛选）
+# =====================================================
 
 async def get_product_list(
         session: AsyncSession,
@@ -49,13 +50,17 @@ async def get_product_list(
 
     # 商品名称搜索
     if keyword:
+
         query = query.where(
-            Product.name.like(f"%{keyword}%")
+            Product.name.like(
+                f"%{keyword}%"
+            )
         )
 
 
     # 类目筛选
     if category_id:
+
         query = query.where(
             Product.category_id == category_id
         )
@@ -63,6 +68,7 @@ async def get_product_list(
 
     # 品牌筛选
     if brand_id:
+
         query = query.where(
             Product.brand_id == brand_id
         )
@@ -70,15 +76,21 @@ async def get_product_list(
 
     # 状态筛选
     if status is not None:
+
         query = query.where(
             Product.status == status
         )
 
 
-    # 总数量
+    # -----------------------------
+    # 查询总数量
+    # -----------------------------
+
     count_query = select(
         func.count()
-    ).select_from(query.subquery())
+    ).select_from(
+        query.subquery()
+    )
 
 
     total_result = await session.execute(
@@ -89,7 +101,10 @@ async def get_product_list(
 
 
 
-    # 分页
+    # -----------------------------
+    # 分页查询
+    # -----------------------------
+
     query = query.offset(
         (page - 1) * page_size
     ).limit(
@@ -97,18 +112,26 @@ async def get_product_list(
     )
 
 
-    result = await session.execute(query)
+    result = await session.execute(
+        query
+    )
+
 
     products = result.scalars().all()
 
 
-    return total, products
+    return {
+        "total": total,
+        "list": products,
+        "page": page,
+        "page_size": page_size
+    }
 
 
 
-# ===============================
+# =====================================================
 # 根据ID查询商品
-# ===============================
+# =====================================================
 
 async def get_product_by_id(
         session: AsyncSession,
@@ -117,22 +140,42 @@ async def get_product_by_id(
 
     result = await session.execute(
         select(Product)
-        .where(Product.id == product_id)
+        .where(
+            Product.id == product_id
+        )
     )
+
 
     return result.scalar_one_or_none()
 
 
 
-# ===============================
+# =====================================================
 # 修改商品
-# ===============================
+# =====================================================
 
 async def update_product(
         session: AsyncSession,
-        product: Product,
+        product_id: int,
         data: ProductUpdate
 ):
+
+    result = await session.execute(
+        select(Product)
+        .where(
+            Product.id == product_id
+        )
+    )
+
+
+    product = result.scalar_one_or_none()
+
+
+    if product is None:
+
+        return None
+
+
 
     update_data = data.model_dump(
         exclude_unset=True
@@ -148,65 +191,128 @@ async def update_product(
         )
 
 
+
     await session.commit()
 
     await session.refresh(product)
+
 
     return product
 
 
 
-# ===============================
+# =====================================================
 # 删除商品
-# ===============================
+# =====================================================
 
 async def delete_product(
         session: AsyncSession,
-        product: Product
+        product_id: int
 ):
 
-    await session.delete(product)
+    result = await session.execute(
+        select(Product)
+        .where(
+            Product.id == product_id
+        )
+    )
+
+
+    product = result.scalar_one_or_none()
+
+
+    if product is None:
+
+        return False
+
+
+
+    await session.delete(
+        product
+    )
+
 
     await session.commit()
+
 
     return True
 
 
 
-# ===============================
+# =====================================================
 # 修改库存
-# ===============================
+# =====================================================
 
 async def update_stock(
         session: AsyncSession,
-        product: Product,
+        product_id: int,
         stock: int
 ):
 
+    result = await session.execute(
+        select(Product)
+        .where(
+            Product.id == product_id
+        )
+    )
+
+
+    product = result.scalar_one_or_none()
+
+
+    if product is None:
+
+        return None
+
+
+
     product.stock = stock
+
 
     await session.commit()
 
     await session.refresh(product)
+
 
     return product
 
 
 
-# ===============================
-# 修改上下架状态
-# ===============================
+# =====================================================
+# 修改商品上下架状态
+# 对应 routers/product.py
+# PUT /api/product/status/{product_id}
+# =====================================================
 
-async def update_status(
+async def update_product_status(
         session: AsyncSession,
-        product: Product,
+        product_id: int,
         status: int
 ):
 
+    result = await session.execute(
+        select(Product)
+        .where(
+            Product.id == product_id
+        )
+    )
+
+
+    product = result.scalar_one_or_none()
+
+
+    if product is None:
+
+        return None
+
+
+
     product.status = status
+
 
     await session.commit()
 
     await session.refresh(product)
+
 
     return product
