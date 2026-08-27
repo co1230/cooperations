@@ -11,6 +11,7 @@ from sqlalchemy import (
 from config.db_conf import Base
 
 
+
 class Order(Base):
 
     """
@@ -23,7 +24,9 @@ class Order(Base):
     - 修改订单状态
     """
 
-    __tablename__ = "order"
+
+    __tablename__ = "orders"
+
 
 
     # 订单ID
@@ -35,6 +38,7 @@ class Order(Base):
     )
 
 
+
     # 订单编号
     order_no = Column(
         String(50),
@@ -42,6 +46,7 @@ class Order(Base):
         unique=True,
         comment="订单编号"
     )
+
 
 
     # 用户ID
@@ -52,6 +57,7 @@ class Order(Base):
     )
 
 
+
     # 商品ID
     product_id = Column(
         Integer,
@@ -60,12 +66,14 @@ class Order(Base):
     )
 
 
+
     # 商品名称
     product_name = Column(
         String(255),
         nullable=False,
         comment="商品名称"
     )
+
 
 
     # 商品数量
@@ -77,6 +85,7 @@ class Order(Base):
     )
 
 
+
     # 订单金额
     total_amount = Column(
         DECIMAL(10,2),
@@ -85,8 +94,9 @@ class Order(Base):
     )
 
 
-    # 订单状态
 
+    # 订单状态
+    #
     # 0 待付款
     # 1 待发货
     # 2 已发货
@@ -97,8 +107,9 @@ class Order(Base):
         Integer,
         nullable=False,
         default=1,
-        comment="订单状态"
+        comment="订单状态：0待付款 1待发货 2已发货 3已完成 4已退款"
     )
+
 
 
     # 物流公司
@@ -110,6 +121,7 @@ class Order(Base):
     )
 
 
+
     # 物流单号
 
     tracking_number = Column(
@@ -117,6 +129,7 @@ class Order(Base):
         nullable=True,
         comment="物流单号"
     )
+
 
 
     # 发货时间
@@ -128,6 +141,7 @@ class Order(Base):
     )
 
 
+
     # 创建时间
 
     created_at = Column(
@@ -136,6 +150,7 @@ class Order(Base):
         default=datetime.now,
         comment="创建时间"
     )
+
 
 
     # 更新时间
