@@ -158,7 +158,4 @@ app.include_router(after_sale.router)
 
 app.include_router(logs.router)
 
-
-# ⭐⭐⭐ 成员D新增商品管理接口
-
 app.include_router(product.router)
