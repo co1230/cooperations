@@ -1,7 +1,6 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from sqlalchemy.ext.asyncio import AsyncSession
-
 
 from config.db_conf import get_db
 
@@ -21,17 +20,37 @@ router = APIRouter(
 
 
 
-# ==========================
-# 订单列表
-# ==========================
+
+
+# =====================================================
+# 获取订单列表
+# GET /api/order/list
+# =====================================================
 
 @router.get("/list")
-async def order_list(
-        db:AsyncSession = Depends(get_db)
+async def get_order_list(
+
+        page: int = Query(1, ge=1),
+
+        page_size: int = Query(10, ge=1, le=100),
+
+        keyword: str | None = None,
+
+        db: AsyncSession = Depends(get_db)
+
 ):
 
+
     result = await order_crud.get_order_list(
-        db
+
+        session=db,
+
+        page=page,
+
+        page_size=page_size,
+
+        keyword=keyword
+
     )
 
 
@@ -39,7 +58,7 @@ async def order_list(
 
         "code":200,
 
-        "message":"获取订单成功",
+        "message":"获取订单列表成功",
 
         "data":result
 
@@ -49,9 +68,12 @@ async def order_list(
 
 
 
-# ==========================
+
+
+# =====================================================
 # 商家发货
-# ==========================
+# PUT /api/order/ship/{order_id}
+# =====================================================
 
 @router.put("/ship/{order_id}")
 
@@ -61,28 +83,44 @@ async def ship_order(
 
         data:OrderShip,
 
-        db:AsyncSession=Depends(get_db)
+        db:AsyncSession = Depends(get_db)
 
 ):
 
 
     order = await order_crud.get_order_by_id(
-        db,
-        order_id
+
+        session=db,
+
+        order_id=order_id
+
     )
+
+
+    if order is None:
+
+        raise HTTPException(
+
+            status_code=404,
+
+            detail="订单不存在"
+
+        )
+
 
 
     result = await order_crud.ship_order(
 
-        db,
+        session=db,
 
-        order,
+        order=order,
 
-        data.express_company,
+        express_company=data.express_company,
 
-        data.tracking_number
+        tracking_number=data.tracking_number
 
     )
+
 
 
     return {
