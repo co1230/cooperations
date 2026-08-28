@@ -19,10 +19,42 @@ export const brands = ['华讯', '小米飞', '荣耀星', '美的莱', '优衣�
 
 export const shops = shopsData
 
-export const products = productsData.map((p) => ({
-  ...p,
-  price: p.combos && p.combos.length ? p.combos[0].price : p.price
-}))
+const reviewsPool = [
+  { user: 'w***g', level: 5, content: '质量很好，和描述一致，客服态度也好，发货很快。', tag: '质量很好' },
+  { user: '桐***雪', level: 4, content: '整体还不错，物流稍微慢了一点，其他都满意。', tag: '物流一般' },
+  { user: 'q***8', level: 5, content: '包装很用心，没有破损，用起来手感很棒！', tag: '包装完好' },
+  { user: '明***星', level: 3, content: '性价比还行，但和图片有一点点色差，能接受。', tag: '略有色差' },
+  { user: '雾***er', level: 5, content: '第二次回购了，品质稳定，值得信赖！', tag: '回购' },
+  { user: 'l***y', level: 4, content: '功能齐全，说明书详细，上手很快。', tag: '功能齐全' }
+]
+
+// 给每个商品附加轻量评价（与 Web 端一致）
+export const products = productsData.map((p) => {
+  const count = 2 + (p.id % 3)
+  const reviews = []
+  for (let i = 0; i < count; i++) {
+    const base = reviewsPool[(p.id + i) % reviewsPool.length]
+    const day = 1 + ((p.id * 7 + i * 3) % 20)
+    reviews.push({
+      id: p.id * 100 + i,
+      productId: p.id,
+      user: base.user,
+      level: base.level,
+      time: `2026-08-${String(day).padStart(2, '0')}`,
+      content: base.content,
+      tag: base.tag
+    })
+  }
+  return {
+    ...p,
+    price: p.combos && p.combos.length ? p.combos[0].price : p.price,
+    reviews
+  }
+})
+
+export function getProductById(id) {
+  return products.find((p) => p.id === Number(id))
+}
 
 export const currentUser = {
   id: 1,

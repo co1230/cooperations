@@ -13,6 +13,7 @@ export default function Product() {
   const [favorites, setFavorites] = useState(load('favorites', []))
   const [toast, setToast] = useState('')
   const [toasting, setToasting] = useState(false)
+  const [reviewsFilter, setReviewsFilter] = useState('all')
 
   useLoad(() => {
     const p = products.find((x) => x.id === Number(router.params.id))
