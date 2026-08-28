@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { products, getShopById } from '../../mock/data'
 import { load, save } from '../../utils/store'
 import { addToCart } from '../../store/global'
+import { openSession } from '../../utils/chat'
 
 export default function Product() {
   const router = useRouter()
@@ -100,6 +101,11 @@ export default function Product() {
   }
 
   const goShop = () => shop && Taro.navigateTo({ url: `/pages/shop/index?id=${shop.id}` })
+  const goChat = () => {
+    if (!shop) return
+    openSession(shop)
+    Taro.navigateTo({ url: `/pages/chat/index?shopId=${shop.id}` })
+  }
 
   return (
     <View style={{ paddingBottom: '110px' }}>
@@ -188,6 +194,10 @@ export default function Product() {
         <View onClick={goShop} style={{ textAlign: 'center', marginRight: '16px' }}>
           <View style={{ fontSize: '22px' }}>🏪</View>
           <View style={{ fontSize: '10px', color: '#999' }}>店铺</View>
+        </View>
+        <View onClick={goChat} style={{ textAlign: 'center', marginRight: '16px' }}>
+          <View style={{ fontSize: '22px' }}>💬</View>
+          <View style={{ fontSize: '10px', color: '#999' }}>客服</View>
         </View>
         <View className='btn' style={{ flex: 1, marginRight: '10px', textAlign: 'center' }} onClick={handleAddCart}>加入购物车</View>
         <View className='btn' style={{ flex: 1, background: '#ff7a32', textAlign: 'center' }} onClick={handleBuy}>立即购买</View>
