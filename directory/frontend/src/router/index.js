@@ -4,12 +4,16 @@
 import { createRouter, createWebHistory } from "vue-router"
 
 
+
 // 布局组件
 
 import Layout from "../layouts/Layout.vue"
 
 
+
 // 页面组件
+
+import Dashboard from "../views/Dashboard.vue"
 
 import Product from "../views/Product.vue"
 
@@ -23,12 +27,16 @@ import Statistics from "../views/Statistics.vue"
 
 
 
+
+
 const routes = [
+
 
 
     // 商家后台布局
 
     {
+
         path: "/",
 
         component: Layout,
@@ -37,51 +45,83 @@ const routes = [
         children: [
 
 
+
+            // 首页仪表盘
+
+            {
+
+                path: "",
+
+                name: "Dashboard",
+
+                component: Dashboard
+
+            },
+
+
+
+
+
             // 商品管理
 
             {
+
                 path: "product",
 
                 name: "Product",
 
                 component: Product
+
             },
+
+
 
 
 
             // 商家订单管理
 
             {
+
                 path: "order",
 
                 name: "Order",
 
                 component: Order
+
             },
+
+
 
 
 
             // 商家售后审核
 
             {
+
                 path: "after-sale",
 
                 name: "AfterSale",
 
                 component: AfterSale
+
             },
+
+
 
 
 
             // 商家营收统计
 
             {
+
                 path: "statistics",
 
                 name: "Statistics",
 
                 component: Statistics
+
             }
+
 
 
         ]
@@ -91,6 +131,9 @@ const routes = [
 
 
 ]
+
+
+
 
 
 
@@ -111,5 +154,5 @@ const router = createRouter({
 
 
 
-export default router
 
+export default router
