@@ -1,0 +1,15 @@
+{
+  "miniprogramRoot": "./",
+  "projectname": "cooperations-mp",
+  "description": "优购商城 · 用户端小程序",
+  "appid": "touristappid",
+  "setting": {
+    "urlCheck": false,
+    "es6": false,
+    "enhance": false,
+    "postcss": false,
+    "minified": false,
+    "compileHotReLoad": true
+  },
+  "compileType": "miniprogram"
+}
