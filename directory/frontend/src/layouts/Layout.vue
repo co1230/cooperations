@@ -1,6 +1,8 @@
 <template>
 
-  <div class="layout">
+
+  <el-container class="layout">
+
 
 
     <!-- 左侧菜单 -->
@@ -8,11 +10,14 @@
     <el-aside width="220px" class="sidebar">
 
 
+
       <div class="logo">
 
         商家管理后台
 
       </div>
+
+
 
 
 
@@ -25,46 +30,106 @@
       >
 
 
-        <el-menu-item index="/product">
+
+        <!-- 首页 -->
+
+        <el-menu-item index="/">
 
           <el-icon>
-            <Goods />
+
+            <HomeFilled />
+
           </el-icon>
 
-          <span>商品管理</span>
+          <span>
+
+            首页仪表盘
+
+          </span>
+
 
         </el-menu-item>
 
 
 
+
+
+
+
+        <!-- 商品管理 -->
+
+
+        <el-menu-item index="/product">
+
+
+          <el-icon>
+
+            <Goods />
+
+          </el-icon>
+
+
+          <span>
+
+            商品管理
+
+          </span>
+
+
+        </el-menu-item>
+
+
+
+
+
+
+
+        <!-- 订单管理 -->
 
 
         <el-menu-item index="/order">
 
 
           <el-icon>
+
             <List />
+
           </el-icon>
 
 
-          <span>订单管理</span>
+          <span>
+
+            订单管理
+
+          </span>
 
 
         </el-menu-item>
 
 
 
+
+
+
+
+        <!-- 售后管理 -->
 
 
         <el-menu-item index="/after-sale">
 
 
           <el-icon>
+
             <Service />
+
           </el-icon>
 
 
-          <span>售后审核</span>
+          <span>
+
+            售后审核
+
+          </span>
 
 
         </el-menu-item>
@@ -73,15 +138,26 @@
 
 
 
+
+
+        <!-- 营收统计 -->
+
+
         <el-menu-item index="/statistics">
 
 
           <el-icon>
+
             <DataAnalysis />
+
           </el-icon>
 
 
-          <span>营收统计</span>
+          <span>
+
+            营收统计
+
+          </span>
 
 
         </el-menu-item>
@@ -91,6 +167,8 @@
       </el-menu>
 
 
+
+
     </el-aside>
 
 
@@ -98,15 +176,22 @@
 
 
 
-    <!-- 右侧内容 -->
+
+
+
+    <!-- 右侧区域 -->
 
 
     <el-container>
 
 
-      <!-- 顶部 -->
+
+
+      <!-- 顶部栏 -->
+
 
       <el-header class="header">
+
 
 
         <span>
@@ -116,6 +201,7 @@
         </span>
 
 
+
       </el-header>
 
 
@@ -123,13 +209,15 @@
 
 
 
-      <!-- 页面显示区域 -->
+
+      <!-- 页面内容 -->
 
 
       <el-main class="content">
 
 
         <router-view />
+
 
 
       </el-main>
@@ -140,10 +228,15 @@
 
 
 
-  </div>
+
+
+  </el-container>
+
+
 
 
 </template>
+
 
 
 
@@ -155,6 +248,9 @@
 
 import {
 
+
+  HomeFilled,
+
   Goods,
 
   List,
@@ -162,6 +258,7 @@ import {
   Service,
 
   DataAnalysis
+
 
 
 } from "@element-plus/icons-vue"
@@ -176,13 +273,13 @@ import {
 
 
 
+
+
 <style scoped>
 
 
 .layout {
 
-
-  display:flex;
 
   width:100%;
 
@@ -192,6 +289,8 @@ import {
 
 
 }
+
+
 
 
 
@@ -211,25 +310,34 @@ import {
 
 
 
+
+
 .logo {
 
 
   height:60px;
 
+
   display:flex;
+
 
   align-items:center;
 
+
   justify-content:center;
+
 
   font-size:20px;
 
+
   font-weight:bold;
+
 
   border-bottom:1px solid #eee;
 
 
 }
+
 
 
 
@@ -251,22 +359,31 @@ import {
 
 
 
+
+
 .header {
 
 
   height:60px;
 
+
   display:flex;
+
 
   align-items:center;
 
+
   padding-left:20px;
+
 
   background:#ffffff;
 
+
   border-bottom:1px solid #ddd;
 
+
   font-size:18px;
+
 
   font-weight:bold;
 
@@ -279,10 +396,13 @@ import {
 
 
 
+
+
 .content {
 
 
   padding:20px;
+
 
   overflow:auto;
 
