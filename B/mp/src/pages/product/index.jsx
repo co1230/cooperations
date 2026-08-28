@@ -108,6 +108,16 @@ export default function Product() {
     Taro.navigateTo({ url: `/pages/chat/index?shopId=${shop.id}` })
   }
 
+  const reviews = product.reviews || []
+  const filteredReviews = reviews.filter((r) => {
+    if (reviewsFilter === 'good') return r.level >= 4
+    if (reviewsFilter === 'mid') return r.level === 3
+    if (reviewsFilter === 'bad') return r.level <= 2
+    return true
+  })
+
+  const starCounts = [5, 4, 3, 2, 1].map((l) => reviews.filter((r) => r.level === l).length)
+
   return (
     <View style={{ paddingBottom: '110px' }}>
       {/* 商品图 */}
@@ -179,6 +189,68 @@ export default function Product() {
         </View>
       </View>
 
+      {/* 商品评价 */}
+      <View style={{ background: '#fff', padding: '16px', marginTop: '10px' }}>
+        <View style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+          <Text style={{ fontSize: '15px', fontWeight: 700 }}>商品评价（{reviews.length}）</Text>
+          <View style={{ display: 'flex', gap: '6px' }}>
+            {[['all', '全部'], ['good', '好评'], ['mid', '中评'], ['bad', '差评']].map(([k, label]) => (
+              <Text
+                key={k}
+                onClick={() => setReviewsFilter(k)}
+                style={{
+                  padding: '4px 12px', borderRadius: '14px', fontSize: '12px',
+                  background: reviewsFilter === k ? '#ff5000' : '#f3f3f3',
+                  color: reviewsFilter === k ? '#fff' : '#333'
+                }}
+              >
+                {label}
+              </Text>
+            ))}
+          </View>
+        </View>
+
+        {/* 评分概览 */}
+        <View style={{ display: 'flex', gap: '16px', padding: '14px', background: '#fff7f3', borderRadius: '10px', marginBottom: '14px' }}>
+          <View style={{ textAlign: 'center' }}>
+            <Text className='primary' style={{ fontSize: '26px', fontWeight: 700, display: 'block' }}>{avgStar(reviews)}</Text>
+            <Stars value={Math.round(avgStar(reviews))} />
+            <Text style={{ fontSize: '11px', color: '#999' }}>{reviews.length} 条评价</Text>
+          </View>
+          <View style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '3px' }}>
+            {starCounts.map((c, i) => (
+              <View key={i} style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '11px', color: '#666' }}>
+                <Text style={{ width: '14px' }}>{5 - i}星</Text>
+                <View style={{ flex: 1, height: '8px', background: '#eee', borderRadius: '4px', overflow: 'hidden' }}>
+                  <View style={{ height: '100%', width: `${reviews.length ? (c / reviews.length) * 100 : 0}%`, background: '#ffb400', borderRadius: '4px' }} />
+                </View>
+                <Text style={{ width: '24px', textAlign: 'right' }}>{c}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* 评价列表 */}
+        {filteredReviews.length ? (
+          filteredReviews.map((r) => (
+            <View key={r.id} style={{ padding: '12px 0', borderBottom: '1px solid #f5f5f5' }}>
+              <View style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <View style={{ width: '34px', height: '34px', borderRadius: '50%', background: '#f0f0f0', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '16px' }}>👤</View>
+                <View style={{ flex: 1 }}>
+                  <Text style={{ fontSize: '13px' }}>{r.user}</Text>
+                  <Text style={{ fontSize: '11px', color: '#999', marginTop: '2px' }}>{r.time}</Text>
+                </View>
+                <Text style={{ background: '#fff0e8', color: '#ff5000', borderRadius: '6px', padding: '2px 8px', fontSize: '11px' }}>{r.tag}</Text>
+              </View>
+              <Stars value={r.level} />
+              <Text style={{ fontSize: '13px', color: '#333', lineHeight: 1.6, marginTop: '6px' }}>{r.content}</Text>
+            </View>
+          ))
+        ) : (
+          <View style={{ textAlign: 'center', color: '#999', padding: '24px 0', fontSize: '13px' }}>该分类暂无评价</View>
+        )}
+      </View>
+
       {/* Toast */}
       {toasting && (
         <View style={{ position: 'fixed', top: '40%', left: '50%', transform: 'translate(-50%,-50%)', background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '14px 22px', borderRadius: '10px', fontSize: '14px', zIndex: 99 }}>
@@ -205,4 +277,16 @@ export default function Product() {
       </View>
     </View>
   )
+}
+
+function avgStar(list) {
+  if (!list || !list.length) return '0.0'
+  const sum = list.reduce((s, r) => s + r.level, 0)
+  return (sum / list.length).toFixed(1)
+}
+
+function Stars({ value }) {
+  const stars = []
+  for (let i = 1; i <= 5; i++) stars.push(<Text key={i} style={{ fontSize: '12px', color: i <= value ? '#ffb400' : '#ddd' }}>★</Text>)
+  return <View style={{ display: 'flex', gap: '2px', marginTop: '4px' }}>{stars}</View>
 }
