@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_conf import get_db
 from crud import category as category_crud
 from crud import operation_log as log_crud
-from models.admin import Admin
+from models.user import User
 from models.category import Category
 from schemas.category import CategoryCreateRequest, CategoryUpdateRequest
 from utils.auth import get_client_ip, get_current_admin
@@ -17,7 +17,7 @@ router = APIRouter(prefix="/api/category", tags=["类目管理"])
 
 @router.get("/list")
 async def get_category_tree(
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 返回树形结构的类目列表
@@ -30,7 +30,7 @@ async def get_category_tree(
 async def create_category(
         category_data: CategoryCreateRequest,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 创建逻辑：校验父级 -> 计算层级 -> 查重 -> 创建 -> 记录日志
@@ -64,7 +64,7 @@ async def update_category(
         category_id: int,
         category_data: CategoryUpdateRequest,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 修改逻辑：校验存在 -> 查重 -> 更新传入字段 -> 记录日志
@@ -92,7 +92,7 @@ async def update_category(
 async def delete_category(
         category_id: int,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 删除逻辑：校验存在 -> 校验无子类目 -> 删除 -> 记录日志

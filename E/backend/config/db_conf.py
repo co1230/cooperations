@@ -1,7 +1,7 @@
 from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
 
-# 数据库连接地址（请根据本地 MySQL 配置修改用户名和密码）
-ASYNC_DATABASE_URL = "mysql+aiomysql://root:123456@localhost:3306/e_shop_admin?charset=utf8mb4"
+# 数据库连接地址（对齐 A 任务：团队共用 ecommerce 库；请根据本地 MySQL 配置修改用户名和密码）
+ASYNC_DATABASE_URL = "mysql+aiomysql://root:123456@localhost:3306/ecommerce?charset=utf8mb4"
 
 # 创建异步引擎
 async_engine = create_async_engine(
