@@ -11,7 +11,7 @@ const payMethods = [
 export default function Pay() {
   const location = useLocation()
   const navigate = useNavigate()
-  const { orders, updateOrder } = useCart()
+  const { orders, updateOrder, removeItemsByKeys } = useCart()
   const orderId = location.state?.orderId
 
   const [method, setMethod] = useState('wechat')
@@ -30,6 +30,8 @@ export default function Pay() {
     // 模拟支付：短暂延时后成功，不真正扣款
     setTimeout(() => {
       updateOrder(order.id, { status: '待发货', payMethod: method })
+      // 支付成功后才从购物车剔除本订单对应的商品（取消订单则保留在购物车）
+      removeItemsByKeys(order.items.map((it) => it.key))
       setPaying(false)
       navigate('/orders', { replace: true })
     }, 1200)

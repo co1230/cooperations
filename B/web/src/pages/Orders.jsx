@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useCart, resolveProduct } from '../components/CartContext'
 import { getShopById } from '../mock/data'
+import { openSession } from '../utils/chat'
 
 // 按店铺分组订单内商品
 function groupItems(items) {
@@ -24,9 +25,14 @@ const statusTabs = [
 ]
 
 export default function Orders() {
+  const navigate = useNavigate()
   const { orders, updateOrder } = useCart()
   const [tab, setTab] = useState('all')
-  const [detail, setDetail] = useState(null)
+
+  const contactShop = (shop) => {
+    openSession(shop)
+    navigate(`/chat/${shop.id}`)
+  }
 
   const list = orders.filter((o) => {
     if (tab === 'all') return true
@@ -100,9 +106,9 @@ export default function Orders() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
                   <span style={{ color: '#666', fontSize: 13 }}>订单号 {o.no}</span>
                   <span style={{ color: '#999', fontSize: 12 }}>{o.createdAt}</span>
-                  <button className="btn secondary" style={{ marginLeft: 'auto', padding: '3px 12px', fontSize: 12 }} onClick={() => setDetail(detail?.id === o.id ? null : o)}>
-                    {detail?.id === o.id ? '收起' : '查看详情'}
-                  </button>
+                  <Link to={`/order/${o.id}`} className="btn secondary" style={{ marginLeft: 'auto', padding: '3px 12px', fontSize: 12 }}>
+                    查看详情
+                  </Link>
                 </div>
 
                 {groupItems(o.items).map(({ shop, items: shopItems }) => (
@@ -110,6 +116,9 @@ export default function Orders() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
                       <span style={{ fontSize: 18 }}>{shop.logo}</span>
                       <Link to={`/shop/${shop.id}`} style={{ fontWeight: 600, fontSize: 14 }}>{shop.name}</Link>
+                      <button className="btn secondary" style={{ marginLeft: 'auto', padding: '3px 12px', fontSize: 12 }} onClick={() => contactShop(shop)}>
+                        联系客服
+                      </button>
                     </div>
                     {shopItems.map((it) => {
                       const prod = resolveProduct(it.productId)
@@ -171,17 +180,6 @@ export default function Orders() {
                     )}
                   </div>
                 </div>
-
-                {/* 详情展开 */}
-                {detail?.id === o.id && (
-                  <div style={{ padding: '14px 16px', borderTop: '1px solid var(--border)', background: '#fafafa' }}>
-                    <div style={{ fontSize: 13, color: '#666', lineHeight: 2 }}>
-                      <div>收货人：{o.address.name} {o.address.phone}</div>
-                      <div>收货地址：{o.address.region} {o.address.detail}</div>
-                      <div>商品金额：¥{o.totalPrice}，优惠：¥{o.discountPrice}，实付：¥{o.payPrice}</div>
-                    </div>
-                  </div>
-                )}
               </div>
             ))
           )}

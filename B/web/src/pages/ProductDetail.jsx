@@ -76,17 +76,26 @@ export default function ProductDetail() {
       alert('该规格已售罄，请选择其他规格')
       return
     }
-    const added = addToCart({
-      productId: product.id,
-      skuLabels: selectedLabels,
-      price: currentCombo.price,
-      qty: 1,
-      maxStock: availStock,
-    })
     if (kind === 'cart') {
+      addToCart({
+        productId: product.id,
+        skuLabels: selectedLabels,
+        price: currentCombo.price,
+        qty: 1,
+        maxStock: availStock,
+      })
       showToast('已加入购物车')
     } else {
-      navigate('/checkout', { state: { fromBuyNow: { key: added } } })
+      // 立即购买：不写入购物车，直接把购买项传给结算页
+      const buyItem = {
+        key: `buy-${Date.now()}`,
+        productId: product.id,
+        skuLabels: selectedLabels,
+        price: currentCombo.price,
+        qty: 1,
+        maxStock: availStock,
+      }
+      navigate('/checkout', { state: { fromBuyNow: buyItem } })
     }
   }
 

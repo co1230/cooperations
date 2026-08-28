@@ -7,7 +7,7 @@ import { load } from '../utils/store'
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { cart, createOrder, clearChecked } = useCart()
+  const { cart, createOrder } = useCart()
   const [chosenAddress, setChosenAddress] = useState(null)
 
   // 结算的商品：优先「立即购买」单件，否则购物车勾选项
@@ -15,11 +15,11 @@ export default function Checkout() {
 
   const items = useMemo(() => {
     if (buyNow) {
-      const item = cart.find((i) => i.key === buyNow.key)
-      return item ? [item] : []
+      // 立即购买：直接使用传入的购买项，不经过购物车
+      return [buyNow]
     }
     return cart.filter((i) => i.checked)
-  }, [cart, buyNow])
+  }, [buyNow, cart])
 
   const totalPrice = items.reduce((s, i) => s + i.price * i.qty, 0)
   const totalQty = items.reduce((s, i) => s + i.qty, 0)
@@ -52,11 +52,8 @@ export default function Checkout() {
       navigate('/address')
       return
     }
-    if (buyNow) {
-      clearChecked()
-    } else {
-      clearChecked()
-    }
+    // 下单（生成订单）时【不】从购物车剔除商品；
+    // 只有订单支付成功后才剔除对应购物车项（见 Pay.jsx），取消订单则商品保留在购物车
     const order = createOrder({
       items: items.map((i) => ({ key: i.key, productId: i.productId, skuLabels: i.skuLabels, price: i.price, qty: i.qty, maxStock: i.maxStock })),
       totalPrice,

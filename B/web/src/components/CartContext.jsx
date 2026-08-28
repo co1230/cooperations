@@ -44,6 +44,13 @@ export function CartProvider({ children }) {
 
   const clearChecked = () => setCart((prev) => prev.filter((i) => !i.checked))
 
+  // 按 key 批量移除购物车项（订单支付成功后调用）。
+  // 只移除「确实存在于购物车」的项，立即购买项（不在购物车里）会被安全忽略。
+  const removeItemsByKeys = (keys) => {
+    const set = new Set(keys || [])
+    setCart((prev) => prev.filter((i) => !set.has(i.key)))
+  }
+
   // 生成订单（通常在结算/支付成功后调用）
   const createOrder = (payload) => {
     const order = {
@@ -76,6 +83,7 @@ export function CartProvider({ children }) {
       toggleCheck,
       toggleCheckAll,
       clearChecked,
+      removeItemsByKeys,
       createOrder,
       updateOrder,
     }),

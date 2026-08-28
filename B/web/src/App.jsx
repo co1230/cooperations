@@ -13,6 +13,9 @@ import Cart from './pages/Cart'
 import Checkout from './pages/Checkout'
 import Pay from './pages/Pay'
 import Orders from './pages/Orders'
+import OrderDetail from './pages/OrderDetail'
+import Chat from './pages/Chat'
+import Messages from './pages/Messages'
 
 export default function App() {
   return (
@@ -29,6 +32,9 @@ export default function App() {
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/pay" element={<Pay />} />
             <Route path="/orders" element={<Orders />} />
+            <Route path="/order/:id" element={<OrderDetail />} />
+            <Route path="/chat/:shopId" element={<Chat />} />
+            <Route path="/messages" element={<Messages />} />
             <Route path="/profile" element={<Profile />} />
             <Route path="/address" element={<AddressList />} />
             <Route path="/favorites" element={<Favorites />} />
