@@ -1,9 +1,9 @@
 import request from './request'
 
-// 用户列表（分页+搜索+状态筛选）
+// 用户列表（分页+搜索+角色/状态筛选）
 export const getUserList = (params) => request.get('/admin/user/list', { params })
 
-// 封禁用户
+// 封禁用户（可选同时关闭待付款订单）
 export const banUser = (id, data) => request.put(`/admin/user/ban/${id}`, data)
 
 // 解封用户

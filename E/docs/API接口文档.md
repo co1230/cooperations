@@ -1,8 +1,9 @@
 # 电商平台后台管理系统 - 前后端接口文档
 
-> 项目：`E`（管理员后台：类目/品牌管理、用户封禁、平台介入售后、系统日志监控）
+> 项目：`E`（管理员后台：类目/品牌管理、用户封禁、商家审核、平台介入售后、系统日志监控）
 > 后端：FastAPI + SQLAlchemy（异步）+ MySQL
 > 前端：Vue 3 + Element Plus
+> **数据库：与团队共用 `ecommerce` 库（对齐 A 任务 database/schema.sql）；本文档业务规则同时对齐 A 任务原型（mock-api.js / README）**
 
 ---
 
@@ -60,6 +61,8 @@ token 由登录接口返回，有效期 24 小时。
 
 ## 二、管理员认证模块
 
+> 对齐 A 任务：管理员是 `users` 表中 `role=ADMIN` 的账号（无独立 admin 表）。
+
 ### 2.1 管理员登录
 
 | 项目 | 内容 |
@@ -73,15 +76,17 @@ token 由登录接口返回，有效期 24 小时。
 
 ```json
 {
-  "username": "admin",
+  "username": "admin@demo.com",
   "password": "123456"
 }
 ```
 
 | 字段 | 类型 | 必填 | 说明 |
 |---|---|---|---|
-| username | string | 是 | 用户名（1-50 字符） |
+| username | string | 是 | 用户名或邮箱（1-120 字符） |
 | password | string | 是 | 密码（1-255 字符） |
+
+**业务规则：** 非 `ADMIN` 角色账号登录被拒绝（"该账号不是管理员账号"）；`DISABLED` 状态管理员被拒绝。
 
 **响应示例：**
 
@@ -94,7 +99,8 @@ token 由登录接口返回，有效期 24 小时。
     "adminInfo": {
       "id": 1,
       "username": "admin",
-      "role": "super"
+      "email": "admin@demo.com",
+      "role": "ADMIN"
     }
   }
 }
@@ -107,20 +113,6 @@ token 由登录接口返回，有效期 24 小时。
 | 方法 | GET |
 | 路径 | `/api/admin/info` |
 | 认证 | 是 |
-
-**响应示例：**
-
-```json
-{
-  "code": 200,
-  "message": "获取管理员信息成功",
-  "data": {
-    "id": 1,
-    "username": "admin",
-    "role": "super"
-  }
-}
-```
 
 ---
 
@@ -150,18 +142,7 @@ token 由登录接口返回，有效期 24 小时。
       "sort": 1,
       "status": 1,
       "created_at": "2026-08-26T10:00:00",
-      "children": [
-        {
-          "id": 3,
-          "parent_id": 1,
-          "name": "手机",
-          "level": 2,
-          "sort": 1,
-          "status": 1,
-          "created_at": "2026-08-26T10:00:00",
-          "children": []
-        }
-      ]
+      "children": []
     }
   ]
 }
@@ -298,17 +279,6 @@ token 由登录接口返回，有效期 24 小时。
 | 路径 | `/api/brand/update/{brand_id}` |
 | 认证 | 是 |
 
-**请求体（只更新传入的字段）：**
-
-```json
-{
-  "name": "华为",
-  "logo": "https://example.com/new-logo.png",
-  "description": "更新后的描述",
-  "status": 1
-}
-```
-
 ### 4.4 删除品牌
 
 | 项目 | 内容 |
@@ -320,6 +290,8 @@ token 由登录接口返回，有效期 24 小时。
 ---
 
 ## 五、用户管理模块
+
+> 对齐 A 任务：用户表统一承载 BUYER/MERCHANT/ADMIN 三种身份；封禁 = `account_status → DISABLED`。
 
 ### 5.1 用户列表
 
@@ -335,8 +307,9 @@ token 由登录接口返回，有效期 24 小时。
 |---|---|---|---|
 | page | int | 否 | 页码，默认 1 |
 | page_size | int | 否 | 每页条数，默认 10 |
-| keyword | string | 否 | 用户名/昵称/手机号模糊搜索 |
-| status | int | 否 | 账号状态筛选：0 正常 / 1 封禁 |
+| keyword | string | 否 | 用户名/邮箱/手机号模糊搜索 |
+| role | string | 否 | 角色筛选：BUYER / MERCHANT / ADMIN |
+| account_status | string | 否 | 状态筛选：ACTIVE / DISABLED / PENDING |
 
 **响应示例：**
 
@@ -345,15 +318,16 @@ token 由登录接口返回，有效期 24 小时。
   "code": 200,
   "message": "获取用户列表成功",
   "data": {
-    "total": 5,
+    "total": 10,
     "list": [
       {
-        "id": 3,
+        "id": 6,
         "username": "wangwu",
-        "nickname": "王五",
-        "avatar": null,
+        "email": "wangwu@demo.com",
         "phone": "13800000003",
-        "status": 1,
+        "avatar_url": null,
+        "role": "BUYER",
+        "account_status": "DISABLED",
         "ban_reason": "恶意刷单",
         "ban_until": null,
         "created_at": "2026-08-26T10:00:00"
@@ -389,11 +363,14 @@ token 由登录接口返回，有效期 24 小时。
 | ban_duration_hours | int | 否 | 封禁时长（小时），**0 表示永久封禁**，默认 0 |
 | close_unpaid_orders | bool | 否 | 是否同时关闭该用户的待付款订单，默认 false |
 
-**业务规则：** 已被封禁的用户不能重复封禁。
+**业务规则（对齐 A 任务）：**
+
+- 管理员账号（role=ADMIN）**受保护**，不能封禁；
+- 仅 ACTIVE 状态可封禁（PENDING 待审核、DISABLED 已封禁均拒绝）；
+- 封禁只阻断"新交易能力"，不影响存量业务（资金安全优先）——已付款/已发货订单继续履约，售后单继续处理；
+- `close_unpaid_orders=true` 时，该用户 PENDING_PAYMENT 订单 → CLOSED，并在日志中记录数量。
 
 > 补充：封禁时长到期的用户，由后端定时任务（每 30 秒扫描）自动解封并写入系统日志（操作类型：`封禁到期自动解封`）；永久封禁（时长 0）不会被自动解封。
-
-> 补充2（存量业务联动）：封禁只阻断"新交易能力"，不影响存量业务（资金安全优先）——已付款/已发货订单继续履约，售后单继续处理；待付款订单仅在 `close_unpaid_orders=true` 时由系统关闭（状态 → 5）。
 
 ### 5.3 解封用户
 
@@ -402,13 +379,104 @@ token 由登录接口返回，有效期 24 小时。
 | 方法 | PUT |
 | 路径 | `/api/admin/user/unban/{user_id}` |
 | 认证 | 是 |
-| 描述 | 解除封禁，清空封禁原因和封禁截止时间 |
+
+**业务规则（对齐 A 任务）：**
+
+- 管理员账号受保护，不能操作；
+- **待审核账号不能通过解封绕过审核**（PENDING 状态拒绝解封）；
+- 仅 DISABLED 状态可解封。
 
 ---
 
-## 六、售后介入模块
+## 六、商家审核模块
 
-### 6.1 售后单列表
+> 对齐 A 任务：管理员"商家审核"——预置待审核商家申请，通过后开通商家登录，拒绝必须填写原因。
+
+### 6.1 商家入驻申请列表
+
+| 项目 | 内容 |
+|---|---|
+| 方法 | GET |
+| 路径 | `/api/admin/merchant/applications` |
+| 认证 | 是 |
+
+**Query 参数：**
+
+| 参数 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| page | int | 否 | 页码，默认 1 |
+| page_size | int | 否 | 每页条数，默认 10 |
+| account_status | string | 否 | 状态筛选：PENDING（默认）/ ACTIVE / 空（全部） |
+
+**响应示例：**
+
+```json
+{
+  "code": 200,
+  "message": "获取商家入驻申请成功",
+  "data": {
+    "total": 2,
+    "list": [
+      {
+        "id": 9,
+        "username": "apply1",
+        "email": "apply1@demo.com",
+        "account_status": "PENDING",
+        "merchant_application": {
+          "shop_name": "山茶手作",
+          "contact": "李雷",
+          "description": "主营手作陶瓷与茶具",
+          "applied_at": "2026-08-20T10:00:00",
+          "review": null
+        },
+        "created_at": "2026-08-26T10:00:00"
+      }
+    ]
+  }
+}
+```
+
+### 6.2 通过入驻申请
+
+| 项目 | 内容 |
+|---|---|
+| 方法 | POST |
+| 路径 | `/api/admin/merchant/approve/{user_id}` |
+| 认证 | 是 |
+| 描述 | 待审核 → ACTIVE，商家开通登录；审核结果（操作人/时间）写入 `merchant_application.review` |
+
+**业务规则：** 仅 role=MERCHANT 且 PENDING 状态可审核；已审核的申请不可重复审核。
+
+### 6.3 驳回入驻申请
+
+| 项目 | 内容 |
+|---|---|
+| 方法 | POST |
+| 路径 | `/api/admin/merchant/reject/{user_id}` |
+| 认证 | 是 |
+
+**请求体：**
+
+```json
+{
+  "remark": "资质不全，请补充营业执照"
+}
+```
+
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| remark | string | 是 | 驳回原因（1-200 字） |
+
+**业务规则：** 驳回后保持 PENDING 状态（不可登录），审核记录写入 `merchant_application.review`；不可重复审核。
+
+---
+
+## 七、售后介入模块
+
+> 对齐 A 任务：售后工单 `after_sale_tickets` 状态机与平台介入规则（mock-api.js 的 canIntervene/interveneRefund）。
+> E 扩展：`deadline` 超时自动介入（定时任务）、`is_platform_intervened`、`platform_intervention` 处理记录。
+
+### 7.1 售后工单列表
 
 | 项目 | 内容 |
 |---|---|
@@ -422,43 +490,52 @@ token 由登录接口返回，有效期 24 小时。
 |---|---|---|---|
 | page | int | 否 | 页码，默认 1 |
 | page_size | int | 否 | 每页条数，默认 10 |
-| status | int | 否 | 状态筛选：0 待处理 / 1 平台已介入 / 2 已完成 / 3 已关闭 |
-| type | string | 否 | 类型筛选：return 退货 / refund 退款 |
+| status | string | 否 | 工单状态：APPLIED/PROCESSING/APPROVED/REJECTED/BUYER_SHIPPED/REFUNDING/COMPLETED/CLOSED |
+| type | string | 否 | 工单类型：REFUND_ONLY / RETURN_REFUND / EXCHANGE |
 
 **响应示例：**
 
 ```json
 {
   "code": 200,
-  "message": "获取售后单列表成功",
+  "message": "获取售后工单列表成功",
   "data": {
     "total": 5,
     "list": [
       {
-        "id": 2,
-        "after_sale_no": "AS20260802001",
-        "order_no": "E20260803001",
-        "product_name": "苹果 iPhone 16 Pro",
-        "username": "zhaoliu",
-        "user_status": 0,
-        "type": "return",
-        "reason": "七天无理由退货",
-        "status": 0,
-        "deadline": "2026-08-26T18:00:00",
+        "id": 1,
+        "ticket_no": "AS20260826001",
+        "order_no": "E20260826001",
+        "product_name": "手冲咖啡分享壶",
+        "buyer_name": "zhangsan",
+        "user_account_status": "ACTIVE",
+        "ticket_type": "REFUND_ONLY",
+        "reason": "质量问题",
+        "requested_amount": 128.0,
+        "merchant_reply": null,
+        "status": "APPLIED",
+        "deadline": "2026-08-29T14:00:00",
         "is_platform_intervened": false,
-        "is_overdue": true,
-        "result": null,
-        "created_at": "2026-08-25T10:00:00"
+        "platform_intervention": null,
+        "is_overdue": false,
+        "can_force_refund": true,
+        "can_reject": true,
+        "created_at": "2026-08-27T10:00:00"
       }
     ]
   }
 }
 ```
 
-> `is_overdue` 为后端实时计算：状态为待处理且已过 `deadline` 时为 `true`。
-> `user_status` 为申请人账号状态（0 正常 / 1 封禁），前端据此标记"申请人已封禁"；封禁不影响其存量售后单的继续处理。
+> `can_force_refund` / `can_reject` 由后端按 A 任务的 canIntervene 规则实时计算，前端直接按标记渲染按钮：
+>
+> - 已被平台处理过（platform_intervention 非空）/ 订单已退款 / 订单履约状态不在 (PAID, SHIPPED, COMPLETED) / 存在更新的工单 → 均不可介入；
+> - 强制退款允许工单状态 ∈ (APPLIED, PROCESSING, APPROVED, **REJECTED**)（可覆盖商家已拒绝的最新申请）；
+> - 驳回允许工单状态 ∈ (APPLIED, PROCESSING, APPROVED)。
+> - `is_overdue` 为后端实时计算：待审核且已过 `deadline`。
+> - `user_account_status` 为买家账号状态，DISABLED 时前端标记"已封禁"。
 
-### 6.2 售后单状态统计
+### 7.2 售后工单状态统计
 
 | 项目 | 内容 |
 |---|---|
@@ -473,73 +550,90 @@ token 由登录接口返回，有效期 24 小时。
   "code": 200,
   "message": "获取售后统计成功",
   "data": {
-    "pending": 2,
-    "overdue": 1,
-    "intervened": 1,
+    "pending": 1,
+    "overdue": 0,
+    "processing": 2,
     "completed": 1,
     "closed": 1
   }
 }
 ```
 
-### 6.3 平台介入
+### 7.3 平台介入
 
 | 项目 | 内容 |
 |---|---|
 | 方法 | PUT |
-| 路径 | `/api/after-sale/intervene/{after_sale_id}` |
+| 路径 | `/api/after-sale/intervene/{ticket_id}` |
 | 认证 | 是 |
-| 描述 | 管理员手动介入，售后单状态：0 待处理 → 1 平台已介入 |
+| 描述 | 工单 APPLIED → PROCESSING，订单售后状态同步 → PROCESSING，写状态变更日志 |
 
-**业务规则：** 仅待处理状态可介入。
+**业务规则：** 仅待审核（APPLIED）且未被平台介入过的工单可手动介入；超时工单由定时任务自动介入。
 
-### 6.4 强制退款
+### 7.4 强制退款
 
 | 项目 | 内容 |
 |---|---|
 | 方法 | PUT |
-| 路径 | `/api/after-sale/refund/{after_sale_id}` |
+| 路径 | `/api/after-sale/refund/{ticket_id}` |
 | 认证 | 是 |
-| 描述 | 售后单状态 → 2 已完成，关联订单状态同步更新为 4（已退款） |
 
-**请求体（可选）：**
+**请求体（原因必填）：**
 
 ```json
 {
-  "result": "管理员强制退款"
+  "reason": "平台核实商家违约，强制退款"
 }
 ```
 
-**业务规则：** 仅待处理 / 平台已介入状态可退款；订单已退款（状态 4）不可重复退款；订单为待付款（0）或已关闭（5）时不允许退款。
+| 字段 | 类型 | 必填 | 说明 |
+|---|---|---|---|
+| reason | string | 是 | 平台处理原因（**1-200 字**） |
 
-### 6.5 关闭争议
+**业务规则（对齐 A 任务 interveneRefund 的 FORCE_REFUND 分支）：**
+
+1. 原因必填（1-200 字）；
+2. 已被平台处理过的工单不能重复介入；订单已退款不能重复退款；
+3. 订单履约状态须 ∈ (PAID, SHIPPED, COMPLETED)；
+4. 存在更新的工单时拒绝（提示处理最新工单）；
+5. 工单状态须 ∈ (APPLIED, PROCESSING, APPROVED, REJECTED)——**可覆盖商家已拒绝的最新申请**；
+6. 工单退款金额必须有效（>0 且 ≤ 订单金额）；
+7. 执行效果：工单 → COMPLETED（写入 platform_intervention 处理记录）；订单 `after_sale_status` → REFUNDED（**履约状态 order_status 不变**）；全额退款时支付流水 SUCCESS → REFUNDED；写订单售后状态变更日志。
+
+### 7.5 驳回申请（关闭争议）
 
 | 项目 | 内容 |
 |---|---|
 | 方法 | PUT |
-| 路径 | `/api/after-sale/close/{after_sale_id}` |
+| 路径 | `/api/after-sale/close/{ticket_id}` |
 | 认证 | 是 |
-| 描述 | 售后单状态 → 3 已关闭 |
 
-**请求体（可选）：**
+**请求体（原因必填）：**
 
 ```json
 {
-  "result": "证据不足，关闭争议"
+  "reason": "证据不足，驳回申请"
 }
 ```
 
-**业务规则：** 仅待处理 / 平台已介入状态可关闭。
+**业务规则（对齐 A 任务 interveneRefund 的 REJECT 分支）：**
 
-### 6.6 超时自动介入（后端定时任务，非接口）
+1. 原因必填（1-200 字）；
+2. 工单状态须 ∈ (APPLIED, PROCESSING, APPROVED)——商家已驳回（REJECTED）的工单不可再驳回，但可强制退款；
+3. 执行效果：工单 → REJECTED；订单 `after_sale_status` → REJECTED；**不产生退款记录、不动支付流水**；写状态变更日志。
 
-后端启动后，APScheduler 定时任务每 **30 秒**扫描一次售后单表：状态为 0（待处理）且 `deadline` 已过的售后单，自动置为 1（平台已介入）、`is_platform_intervened = true`，并写入一条操作人为「系统」的日志（操作类型：`超时自动介入`）。前端无需轮询即可在刷新列表时看到状态变化。
+### 7.6 后端定时任务（非接口）
+
+| 任务 | 间隔 | 逻辑 |
+|---|---|---|
+| 售后超时自动介入 | 30 秒 | APPLIED 且 `deadline` 已过 → PROCESSING，同步订单售后状态，写系统日志+状态变更日志 |
+| 封禁到期自动解封 | 30 秒 | DISABLED 且 `ban_until` 已过（非管理员）→ ACTIVE，清空封禁字段，写系统日志 |
 
 ---
 
-## 七、日志监控模块
+## 八、日志监控模块
 
-### 7.1 操作日志列表
+### 8.1 操作日志列表
 
 | 项目 | 内容 |
 |---|---|
@@ -568,22 +662,22 @@ token 由登录接口返回，有效期 24 小时。
     "total": 3,
     "list": [
       {
-        "id": 3,
+        "id": 5,
         "admin_id": 0,
         "admin_name": "系统",
         "action": "超时自动介入",
         "target_type": "after_sale",
         "target_id": 2,
-        "detail": "售后单 AS20260802001 超过处理时限未处理，系统自动标记平台介入",
+        "detail": "售后工单 AS20260825001 超过处理时限未处理，系统自动标记平台介入",
         "ip": null,
-        "created_at": "2026-08-27T08:30:00"
+        "created_at": "2026-08-28T14:00:00"
       }
     ]
   }
 }
 ```
 
-### 7.2 日志统计
+### 8.2 日志统计
 
 | 项目 | 内容 |
 |---|---|
@@ -606,9 +700,9 @@ token 由登录接口返回，有效期 24 小时。
 
 ---
 
-## 八、附录
+## 九、附录
 
-### 8.1 操作类型（action）枚举
+### 9.1 操作类型（action）枚举
 
 | 操作类型 | 触发场景 | admin_id |
 |---|---|---|
@@ -616,26 +710,40 @@ token 由登录接口返回，有效期 24 小时。
 | 新增类目 / 修改类目 / 删除类目 | 类目管理操作 | 管理员ID |
 | 新增品牌 / 修改品牌 / 删除品牌 | 品牌管理操作 | 管理员ID |
 | 封禁用户 / 解封用户 | 用户管理操作 | 管理员ID |
+| 商家审核通过 / 商家审核驳回 | 商家审核操作 | 管理员ID |
 | 平台介入 / 强制退款 / 关闭争议 | 售后介入操作 | 管理员ID |
-| 超时自动介入 | 定时任务自动触发 | 0（系统） |
-| 封禁到期自动解封 | 定时任务自动触发（封禁时长到期） | 0（系统） |
+| 超时自动介入 / 封禁到期自动解封 | 定时任务自动触发 | 0（系统） |
 
-### 8.2 售后单状态枚举
-
-| 值 | 含义 |
-|---|---|
-| 0 | 待处理 |
-| 1 | 平台已介入 |
-| 2 | 已完成（已退款） |
-| 3 | 已关闭（争议关闭） |
-
-### 8.3 订单状态枚举（简化版）
+### 9.2 售后工单状态枚举（对齐 A 任务）
 
 | 值 | 含义 |
 |---|---|
-| 0 | 待付款 |
-| 1 | 已付款 |
-| 2 | 已发货 |
-| 3 | 已完成 |
-| 4 | 已退款 |
-| 5 | 已关闭 |
+| APPLIED | 待审核（买家已申请） |
+| PROCESSING | 处理中（平台介入中） |
+| APPROVED | 已同意（商家同意） |
+| REJECTED | 已驳回（商家或平台驳回） |
+| BUYER_SHIPPED | 买家已寄回（退货退款流程） |
+| REFUNDING | 退款中 |
+| COMPLETED | 已退款（完成） |
+| CLOSED | 已关闭 |
+
+### 9.3 订单状态枚举（对齐 A 任务）
+
+| 值 | 含义 |
+|---|---|
+| PENDING_PAYMENT | 待付款 |
+| PAID | 已付款（待发货） |
+| SHIPPED | 已发货 |
+| COMPLETED | 已完成 |
+| CANCELLED | 已取消 |
+| CLOSED | 已关闭 |
+
+> 订单的 `order_status`（履约主流程）与 `after_sale_status`（售后流程）为两个独立字段，业务上互不覆盖——平台强制退款只改售后状态与支付流水，不动履约状态。
+
+### 9.4 账号状态枚举（对齐 A 任务）
+
+| 值 | 含义 |
+|---|---|
+| ACTIVE | 正常 |
+| DISABLED | 封禁 |
+| PENDING | 待审核（商家入驻申请） |

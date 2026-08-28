@@ -8,7 +8,7 @@ from starlette import status
 
 from config.db_conf import get_db
 from crud import admin as admin_crud
-from models.admin import Admin
+from models.user import User
 
 SECRET_KEY = "e-shop-admin-secret-key-2026"
 ALGORITHM = "HS256"
@@ -35,18 +35,20 @@ def decode_access_token(token: str) -> Optional[dict]:
 async def get_current_admin(
         authorization: Optional[str] = Header(None),
         db: AsyncSession = Depends(get_db)
-) -> Admin:
-    """依赖项：校验请求头中的 Bearer Token，返回当前登录管理员"""
+) -> User:
+    """依赖项：校验 Bearer Token，返回当前登录管理员（users 表中 role=ADMIN 的账号）"""
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="未登录，请先登录")
     token = authorization.split(" ")[1]
     payload = decode_access_token(token)
     if not payload:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="登录已过期，请重新登录")
-    admin = await admin_crud.get_admin_by_id(db, payload.get("admin_id"))
-    if not admin:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="管理员账号不存在")
-    return admin
+    user = await admin_crud.get_user_by_id(db, payload.get("user_id"))
+    if not user or user.role != "ADMIN":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="管理员账号不存在或已无权限")
+    if user.account_status != "ACTIVE":
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="管理员账号已被禁用")
+    return user
 
 
 def get_client_ip(request: Request) -> str:

@@ -32,6 +32,12 @@ const routes = [
         meta: { title: '用户管理' }
       },
       {
+        path: 'merchant-review',
+        name: 'MerchantReview',
+        component: () => import('../views/MerchantReview.vue'),
+        meta: { title: '商家审核' }
+      },
+      {
         path: 'after-sale',
         name: 'AfterSale',
         component: () => import('../views/AfterSaleManage.vue'),

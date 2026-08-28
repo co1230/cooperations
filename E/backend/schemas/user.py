@@ -19,12 +19,18 @@ class UserManageResponse(BaseModel):
     """用户管理列表项响应（不含密码字段）"""
     id: int
     username: str
-    nickname: Optional[str]
-    avatar: Optional[str]
+    email: str
     phone: Optional[str]
-    status: int
+    avatar_url: Optional[str]
+    role: str
+    account_status: str
     ban_reason: Optional[str]
     ban_until: Optional[datetime]
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class MerchantRejectRequest(BaseModel):
+    """驳回商家入驻申请请求"""
+    remark: str = Field(..., min_length=1, max_length=200, description="驳回原因（1-200字）")

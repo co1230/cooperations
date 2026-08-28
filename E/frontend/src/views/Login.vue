@@ -25,7 +25,7 @@
           </el-button>
         </el-form-item>
       </el-form>
-      <div class="login-tip">默认账号：admin / 123456</div>
+      <div class="login-tip">默认账号：admin / 123456（用户名或 admin@demo.com 均可登录）</div>
     </el-card>
   </div>
 </template>

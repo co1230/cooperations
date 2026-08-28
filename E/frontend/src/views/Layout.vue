@@ -25,6 +25,10 @@
           <el-icon><User /></el-icon>
           <span>用户管理</span>
         </el-menu-item>
+        <el-menu-item index="/merchant-review">
+          <el-icon><Checked /></el-icon>
+          <span>商家审核</span>
+        </el-menu-item>
         <el-menu-item index="/after-sale">
           <el-icon><Service /></el-icon>
           <span>售后介入</span>

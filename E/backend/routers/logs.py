@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from config.db_conf import get_db
 from crud import operation_log as log_crud
-from models.admin import Admin
+from models.user import User
 from schemas.operation_log import OperationLogResponse
 from utils.auth import get_current_admin
 from utils.response import success_response
@@ -22,7 +22,7 @@ async def get_log_list(
         action: Optional[str] = Query(None, description="操作类型"),
         start_time: Optional[datetime] = Query(None, description="开始时间"),
         end_time: Optional[datetime] = Query(None, description="结束时间"),
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     total, logs = await log_crud.get_log_list(
@@ -34,7 +34,7 @@ async def get_log_list(
 
 @router.get("/stats")
 async def get_log_stats(
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     stats = await log_crud.get_log_stats(db)
