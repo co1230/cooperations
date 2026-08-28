@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from config.db_conf import get_db
 from crud import brand as brand_crud
 from crud import operation_log as log_crud
-from models.admin import Admin
+from models.user import User
 from schemas.brand import BrandCreateRequest, BrandResponse, BrandUpdateRequest
 from utils.auth import get_client_ip, get_current_admin
 from utils.exception import BizException
@@ -20,7 +20,7 @@ async def get_brand_list(
         page: int = 1,
         page_size: int = 10,
         keyword: Optional[str] = None,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     total, brands = await brand_crud.get_brand_list(db, keyword, page, page_size)
@@ -32,7 +32,7 @@ async def get_brand_list(
 async def create_brand(
         brand_data: BrandCreateRequest,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 创建逻辑：查重 -> 创建 -> 记录日志
@@ -53,7 +53,7 @@ async def update_brand(
         brand_id: int,
         brand_data: BrandUpdateRequest,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 修改逻辑：校验存在 -> 查重 -> 更新传入字段 -> 记录日志
@@ -78,7 +78,7 @@ async def update_brand(
 async def delete_brand(
         brand_id: int,
         request: Request,
-        admin: Admin = Depends(get_current_admin),
+        admin: User = Depends(get_current_admin),
         db: AsyncSession = Depends(get_db)
 ):
     # 删除逻辑：校验存在 -> 删除 -> 记录日志

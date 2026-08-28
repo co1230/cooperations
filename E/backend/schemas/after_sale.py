@@ -5,23 +5,27 @@ from pydantic import BaseModel, Field
 
 
 class AfterSaleHandleRequest(BaseModel):
-    """售后处理请求（强制退款 / 关闭争议时可选传入处理结果说明）"""
-    result: Optional[str] = Field(None, max_length=255, description="处理结果说明")
+    """平台处理售后工单请求：原因必填（对齐 A 任务：1-200 字平台处理原因）"""
+    reason: str = Field(..., min_length=1, max_length=200, description="平台处理原因（1-200字）")
 
 
 class AfterSaleListResponse(BaseModel):
-    """售后单列表项响应（含关联订单、用户信息）"""
+    """售后工单列表项响应（含关联订单、买家信息与平台可操作标记）"""
     id: int
-    after_sale_no: str
+    ticket_no: str
     order_no: str
-    product_name: str
-    username: str
-    user_status: int
-    type: str
+    product_name: Optional[str]
+    buyer_name: str
+    user_account_status: str
+    ticket_type: str
     reason: str
-    status: int
-    deadline: datetime
+    requested_amount: Optional[float]
+    merchant_reply: Optional[str]
+    status: str
+    deadline: Optional[datetime]
     is_platform_intervened: bool
+    platform_intervention: Optional[dict]
     is_overdue: bool
-    result: Optional[str]
+    can_force_refund: bool
+    can_reject: bool
     created_at: datetime
