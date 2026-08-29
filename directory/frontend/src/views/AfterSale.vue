@@ -51,7 +51,7 @@ style="width:200px"
 
 label="待审核"
 
-:value="0"
+value="APPLIED"
 
 />
 
@@ -60,7 +60,7 @@ label="待审核"
 
 label="同意退款"
 
-:value="1"
+value="APPROVED"
 
 />
 
@@ -69,7 +69,7 @@ label="同意退款"
 
 label="拒绝退款"
 
-:value="2"
+value="REJECTED"
 
 />
 
@@ -162,7 +162,7 @@ label="状态"
 
 <el-tag
 
-v-if="scope.row.status===0"
+v-if="scope.row.status==='APPLIED'"
 
 type="warning"
 
@@ -174,7 +174,7 @@ type="warning"
 
 <el-tag
 
-v-if="scope.row.status===1"
+v-if="scope.row.status==='APPROVED'"
 
 type="success"
 
@@ -186,7 +186,7 @@ type="success"
 
 <el-tag
 
-v-if="scope.row.status===2"
+v-if="scope.row.status==='REJECTED'"
 
 type="danger"
 
@@ -219,13 +219,13 @@ width="220"
 
 <el-button
 
-v-if="scope.row.status===0"
+v-if="scope.row.status==='APPLIED'"
 
 type="success"
 
 size="small"
 
-@click="audit(scope.row,1)"
+@click="audit(scope.row,'APPROVED')"
 
 >
 
@@ -237,13 +237,13 @@ size="small"
 
 <el-button
 
-v-if="scope.row.status===0"
+v-if="scope.row.status==='APPLIED'"
 
 type="danger"
 
 size="small"
 
-@click="audit(scope.row,2)"
+@click="audit(scope.row,'REJECTED')"
 
 >
 
@@ -432,7 +432,7 @@ async function audit(row,resultStatus){
 let text = ""
 
 
-if(resultStatus===1){
+if(resultStatus==='APPROVED'){
 
     text="确定同意退款吗？"
 
@@ -473,7 +473,7 @@ await auditAfterSale(
 
         result:
 
-        resultStatus===1
+        resultStatus==='APPROVED'
 
         ?
 

@@ -48,23 +48,22 @@ export default function Orders() {
     return map[s] || '#333'
   }
 
-  const cancelOrder = (o) => {
+  const cancelOrder = async (o) => {
     if (['待发货', '待收货', '已完成'].includes(o.status)) {
-      alert('当前状态不可取消（模拟规则）')
+      alert('当前状态不可取消')
       return
     }
-    if (confirm('确认取消该订单？')) updateOrder(o.id, { status: '已取消' })
+    if (confirm('确认取消该订单？')) try { await updateOrder(o.id, { status: '已取消' }) } catch (e) { alert(e.message) }
   }
 
-  const refund = (o) => {
+  const refund = async (o) => {
     const reason = prompt('请输入退款/退货原因', '不想要了，申请退款')
     if (reason === null) return
-    updateOrder(o.id, { status: '退款中', refundReason: reason })
-    alert('已提交退款申请（模拟：商家将处理）')
+    try { await updateOrder(o.id, { status: '退款中', refundReason: reason }); alert('已提交售后申请，商家端可立即审核') } catch (e) { alert(e.message) }
   }
 
-  const confirmReceive = (o) => {
-    if (confirm('确认已收到货？')) updateOrder(o.id, { status: '已完成' })
+  const confirmReceive = async (o) => {
+    if (confirm('确认已收到货？')) try { await updateOrder(o.id, { status: '已完成' }) } catch (e) { alert(e.message) }
   }
 
   return (
@@ -159,7 +158,7 @@ export default function Orders() {
                       </>
                     )}
                     {o.status === '待发货' && (
-                      <button className="btn secondary" style={{ padding: '7px 16px', fontSize: 13 }} onClick={() => cancelOrder(o)}>
+                      <button className="btn secondary" style={{ padding: '7px 16px', fontSize: 13 }} onClick={() => refund(o)}>
                         申请退款
                       </button>
                     )}

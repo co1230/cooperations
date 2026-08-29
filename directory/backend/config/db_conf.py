@@ -84,25 +84,7 @@ async def init_db():
     # 导入所有模型
     # 防止Base.metadata为空
 
-    from models import (
-
-        Admin,
-
-        User,
-
-        Category,
-
-        Brand,
-
-        Product,
-
-        Order,
-
-        AfterSale,
-
-        OperationLog
-
-    )
+    from models import Product, Order, AfterSale  # noqa: F401
 
 
     async with engine.begin() as conn:

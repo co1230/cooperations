@@ -1,146 +1,79 @@
-import { useMemo, useState } from 'react'
-import { Link, useNavigate, useLocation } from 'react-router-dom'
-import { useCart, resolveProduct } from '../components/CartContext'
+import { useEffect, useMemo, useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import { tradeApi, requestId } from '../api/trade'
 import { getShopById } from '../mock/data'
 import { load } from '../utils/store'
 
 export default function Checkout() {
   const navigate = useNavigate()
   const location = useLocation()
-  const { cart, createOrder } = useCart()
-  const [chosenAddress, setChosenAddress] = useState(null)
-
-  // 结算的商品：优先「立即购买」单件，否则购物车勾选项
   const buyNow = location.state?.fromBuyNow || null
-
-  const items = useMemo(() => {
-    if (buyNow) {
-      // 立即购买：直接使用传入的购买项，不经过购物车
-      return [buyNow]
-    }
-    return cart.filter((i) => i.checked)
-  }, [buyNow, cart])
-
-  const totalPrice = items.reduce((s, i) => s + i.price * i.qty, 0)
-  const totalQty = items.reduce((s, i) => s + i.qty, 0)
-  // 满 199 减 20（模拟优惠）
-  const discount = totalPrice >= 199 ? 20 : 0
-  const payPrice = totalPrice - discount
-
-  // 按店铺分组展示
-  const checkoutGroups = useMemo(() => {
-    const map = {}
-    items.forEach((item) => {
-      const shopId = resolveProduct(item.productId).shopId
-      if (!map[shopId]) map[shopId] = []
-      map[shopId].push(item)
-    })
-    return Object.entries(map).map(([shopId, its]) => ({ shop: getShopById(shopId), items: its }))
-  }, [items])
-
+  const requestPayload = useMemo(() => buyNow ? {
+    mode: 'buy_now', buy_now: { source_product_id: buyNow.productId, spec_labels: buyNow.skuLabels, quantity: buyNow.qty },
+  } : { mode: 'cart' }, [buyNow])
+  const [preview, setPreview] = useState(null)
+  const [error, setError] = useState('')
+  const [submitting, setSubmitting] = useState(false)
+  const [chosenAddress, setChosenAddress] = useState(null)
   const addresses = load('address', [])
-  const defaultAddr = addresses.find((a) => a.isDefault) || addresses[0]
+  const defaultAddr = addresses.find((item) => item.isDefault) || addresses[0]
 
-  if (!items.length) {
-    return <div className="empty"><p>没有可结算的商品，请返回购物车选择</p></div>
-  }
+  useEffect(() => { tradeApi.preview(requestPayload).then(setPreview).catch((e) => setError(e.message)) }, [requestPayload])
 
-  const placeOrder = () => {
+  const placeOrder = async () => {
     const addr = chosenAddress || defaultAddr
-    if (!addr) {
-      alert('请先新增收货地址')
-      navigate('/address')
+    if (!addr) { alert('请先新增收货地址'); navigate('/address'); return }
+    const receiverName = String(addr.name || addr.receiver_name || '').trim()
+    const receiverPhone = String(addr.phone || addr.tel || addr.receiver_phone || '').trim()
+    const receiverAddress = String(
+      addr.address || addr.receiver_address || `${addr.region || ''} ${addr.detail || addr.detail_address || ''}`
+    ).trim()
+    if (!receiverName || !receiverPhone || !receiverAddress) {
+      alert('当前收货地址资料不完整，请进入“管理地址”补齐姓名、手机号和详细地址')
       return
     }
-    // 下单（生成订单）时【不】从购物车剔除商品；
-    // 只有订单支付成功后才剔除对应购物车项（见 Pay.jsx），取消订单则商品保留在购物车
-    const order = createOrder({
-      items: items.map((i) => ({ key: i.key, productId: i.productId, skuLabels: i.skuLabels, price: i.price, qty: i.qty, maxStock: i.maxStock })),
-      totalPrice,
-      discountPrice: discount,
-      payPrice,
-      address: addr,
-    })
-    navigate('/pay', { state: { orderId: order.id } })
+    setSubmitting(true)
+    try {
+      const result = await tradeApi.createOrders({
+        ...requestPayload,
+        address: { name: receiverName, phone: receiverPhone, address: receiverAddress },
+        request_id: requestId('order'),
+      })
+      navigate('/pay', { state: { checkoutNo: result.checkoutNo, payAmount: result.payAmount } })
+    } catch (e) {
+      setError(e.message)
+      alert(`提交订单失败：${e.message}`)
+    } finally { setSubmitting(false) }
   }
 
-  return (
-    <div className="page">
-      <h2 className="section-title">确认订单</h2>
+  if (error && !preview) return <div className="empty"><p>{error}</p><Link to="/cart" className="btn">返回购物车</Link></div>
+  if (!preview) return <div className="empty"><p>正在由服务器校验库存和金额…</p></div>
 
-      {/* 收货地址 */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-          <span style={{ fontWeight: 600 }}>收货地址</span>
-          <Link to="/address" style={{ color: 'var(--primary)', fontSize: 14 }}>管理地址</Link>
-        </div>
-        {addresses.length === 0 ? (
-          <div style={{ color: '#999', fontSize: 14, padding: '12px 0' }}>
-            暂无地址，<Link to="/address" style={{ color: 'var(--primary)' }}>新增收货地址</Link>
-          </div>
-        ) : (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12 }}>
-            {addresses.map((a) => (
-              <div
-                key={a.id}
-                onClick={() => setChosenAddress(a)}
-                style={{
-                  border: `2px solid ${(chosenAddress || defaultAddr)?.id === a.id ? 'var(--primary)' : '#eee'}`,
-                  borderRadius: 8, padding: 12, cursor: 'pointer', minWidth: 240, background: '#fff',
-                }}
-              >
-                <div style={{ fontWeight: 600 }}>{a.name} <span style={{ color: '#666', fontWeight: 400 }}>{a.phone}</span></div>
-                <div style={{ fontSize: 13, color: '#666', marginTop: 4 }}>{a.region} {a.detail}</div>
-                {a.isDefault && <span className="tag" style={{ marginTop: 6 }}>默认</span>}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* 商品清单（按店铺分组） */}
-      {checkoutGroups.map(({ shop, items: shopItems }) => (
-        <div className="card" key={shop.id} style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '12px 16px', background: '#fafafa', borderBottom: '1px solid var(--border)' }}>
-            <span style={{ fontSize: 20 }}>{shop.logo}</span>
-            <span style={{ fontWeight: 600, fontSize: 14 }}>{shop.name}</span>
-          </div>
-          {shopItems.map((item) => {
-            const prod = resolveProduct(item.productId)
-            return (
-              <div key={item.key} style={{ display: 'flex', gap: 14, padding: 16, borderBottom: '1px solid var(--border)' }}>
-                <img src={prod.image} alt={prod.name} style={{ width: 70, height: 70, objectFit: 'cover', borderRadius: 6 }} />
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>{prod.name}</div>
-                  <div style={{ fontSize: 12, color: '#666', marginTop: 4 }}>
-                    {item.skuLabels.join(' / ')} × {item.qty}
-                  </div>
-                </div>
-                <span className="price" style={{ fontSize: 16 }}>{item.price * item.qty}</span>
-              </div>
-            )
-          })}
-        </div>
-      ))}
-
-      {/* 金额明细 */}
-      <div className="card" style={{ marginBottom: 16 }}>
-        {[
-          ['商品件数', `${totalQty} 件`],
-          ['商品金额', `¥${totalPrice}`],
-          ['优惠减免', `-¥${discount}`],
-          ['应付金额', `¥${payPrice}`],
-        ].map(([k, v], i) => (
-          <div key={k} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', fontWeight: i === 3 ? 700 : 400, fontSize: i === 3 ? 18 : 14 }}>
-            <span style={{ color: i === 3 ? '#333' : '#666' }}>{k}</span>
-            <span style={{ color: i === 3 ? 'var(--primary)' : '#333' }}>{v}</span>
-          </div>
-        ))}
-      </div>
-
-      <button className="btn block" onClick={placeOrder} style={{ padding: '14px' }}>
-        提交订单，去支付 ¥{payPrice}
-      </button>
+  return <div className="page">
+    <h2 className="section-title">确认订单</h2>
+    {error && <div className="card" style={{ color: 'var(--danger)', marginBottom: 16 }}>{error}</div>}
+    <div className="card" style={{ marginBottom: 16 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 12 }}><b>收货地址</b><Link to="/address">管理地址</Link></div>
+      {addresses.length === 0 ? <Link to="/address">暂无地址，点击新增</Link> : <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+        {addresses.map((item) => <div key={item.id} onClick={() => setChosenAddress(item)} style={{ border: `2px solid ${(chosenAddress || defaultAddr)?.id === item.id ? 'var(--primary)' : '#eee'}`, borderRadius: 8, padding: 12, cursor: 'pointer', minWidth: 240 }}>
+          <b>{item.name}</b> {item.phone}<div style={{ color: '#666', marginTop: 4 }}>{item.region} {item.detail}</div>
+        </div>)}
+      </div>}
     </div>
-  )
+    {preview.groups.map((group) => {
+      const shop = getShopById(group.shopId)
+      return <div className="card" key={group.merchantId} style={{ marginBottom: 16, padding: 0, overflow: 'hidden' }}>
+        <div style={{ padding: 12, background: '#fafafa' }}><b>{shop?.logo} {shop?.name || `店铺 ${group.shopId}`}</b></div>
+        {group.items.map((item) => <div key={`${item.productId}-${item.skuLabels.join('|')}`} style={{ display: 'flex', gap: 14, padding: 16, borderTop: '1px solid #eee' }}>
+          <img src={item.image} style={{ width: 70, height: 70, borderRadius: 6 }} />
+          <div style={{ flex: 1 }}><b>{item.name}</b><div style={{ color: '#666', marginTop: 5 }}>{item.skuLabels.join(' / ')} × {item.qty}</div></div>
+          <span className="price">¥{item.subtotal}</span>
+        </div>)}
+      </div>
+    })}
+    <div className="card" style={{ marginBottom: 16 }}>
+      {[["商品件数", `${preview.totalQty} 件`], ["服务器计算商品金额", `¥${preview.originalAmount}`], ["优惠减免", `-¥${preview.discountAmount}`], ["应付金额", `¥${preview.payAmount}`]].map(([name, value], index) => <div key={name} style={{ display: 'flex', justifyContent: 'space-between', padding: 6, fontWeight: index === 3 ? 700 : 400 }}><span>{name}</span><span>{value}</span></div>)}
+    </div>
+    <button className="btn block" disabled={submitting} onClick={placeOrder} style={{ padding: 14 }}>{submitting ? '正在原子化创建订单…' : `提交订单，去支付 ¥${preview.payAmount}`}</button>
+  </div>
 }

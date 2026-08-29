@@ -1,103 +1,43 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { products } from '../mock/data'
-import { load, save, uid } from '../utils/store'
+import { tradeApi } from '../api/trade'
 
 const CartContext = createContext(null)
+const statusNames = { PENDING_PAYMENT: '待支付', PAID: '待发货', SHIPPED: '待收货', COMPLETED: '已完成', CANCELLED: '已取消', CLOSED: '已关闭' }
 
-// 购物车项结构： { key, productId, skuLabels:[...], price, qty, checked, maxStock }
-const CART_KEY = 'cart'
+function displayOrder(order) {
+  const afterSale = order.afterSaleStatus
+  const status = afterSale === 'REFUNDED' ? '已退款' : ['APPLIED', 'PROCESSING', 'APPROVED', 'REFUNDING'].includes(afterSale) ? '退款中' : statusNames[order.status] || order.status
+  return { ...order, statusCode: order.status, afterSaleStatus: afterSale, status, items: (order.items || []).map((item) => ({ ...item, key: String(item.id) })) }
+}
 
 export function CartProvider({ children }) {
-  const [cart, setCart] = useState(() => load(CART_KEY, []))
-  const [orders, setOrders] = useState(() => load('orders', []))
+  const [cart, setCart] = useState([])
+  const [orders, setOrders] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
-  useEffect(() => save(CART_KEY, cart), [cart])
-  useEffect(() => save('orders', orders), [orders])
+  const refreshCart = async () => setCart(await tradeApi.cart())
+  const refreshOrders = async () => setOrders((await tradeApi.orders()).map(displayOrder))
+  useEffect(() => { Promise.all([refreshCart(), refreshOrders()]).catch((e) => setError(e.message)).finally(() => setLoading(false)) }, [])
 
-  // 加入购物车：同商品同规格合并数量
-  const addToCart = ({ productId, skuLabels, price, qty = 1, maxStock }) => {
-    const key = `${productId}:${skuLabels.join('|')}`
-    setCart((prev) => {
-      const exist = prev.find((i) => i.key === key)
-      if (exist) {
-        const newQty = Math.min(exist.qty + qty, maxStock || 99)
-        return prev.map((i) => (i.key === key ? { ...i, qty: newQty } : i))
-      }
-      return [...prev, { key, productId, skuLabels, price, qty, checked: true, maxStock }]
-    })
-    return key
-  }
+  const run = async (action) => { try { setError(''); return await action() } catch (e) { setError(e.message); throw e } }
+  const addToCart = (item) => run(async () => { await tradeApi.addCart(item); await refreshCart() })
+  const updateQty = (key, qty) => run(async () => { setCart(await tradeApi.updateCart(key, { qty: Math.max(1, qty) })) })
+  const removeItem = (key) => run(async () => { await tradeApi.deleteCart(key); await refreshCart() })
+  const toggleCheck = (key) => run(async () => { const item = cart.find((entry) => entry.key === String(key)); setCart(await tradeApi.updateCart(key, { checked: !item.checked })) })
+  const toggleCheckAll = (selected) => run(async () => setCart(await tradeApi.selectCart(cart.map((item) => item.id), selected)))
+  const clearChecked = () => run(async () => { await Promise.all(cart.filter((item) => item.checked).map((item) => tradeApi.deleteCart(item.id))); await refreshCart() })
+  const updateOrder = (id, patch) => run(async () => {
+    if (patch.status === '已取消') await tradeApi.cancel(id)
+    else if (patch.status === '已完成') await tradeApi.confirm(id)
+    else if (patch.status === '退款中') await tradeApi.afterSale(id, { ticket_type: 'REFUND_ONLY', reason: patch.refundReason || '用户申请售后' })
+    await refreshOrders()
+  })
 
-  const updateQty = (key, qty) => {
-    setCart((prev) =>
-      prev.map((i) => (i.key === key ? { ...i, qty: Math.max(1, Math.min(qty, i.maxStock || 99)) } : i))
-    )
-  }
-
-  const removeItem = (key) => setCart((prev) => prev.filter((i) => i.key !== key))
-
-  const toggleCheck = (key) =>
-    setCart((prev) => prev.map((i) => (i.key === key ? { ...i, checked: !i.checked } : i)))
-
-  const toggleCheckAll = (all) =>
-    setCart((prev) => prev.map((i) => ({ ...i, checked: all })))
-
-  const clearChecked = () => setCart((prev) => prev.filter((i) => !i.checked))
-
-  // 按 key 批量移除购物车项（订单支付成功后调用）。
-  // 只移除「确实存在于购物车」的项，立即购买项（不在购物车里）会被安全忽略。
-  const removeItemsByKeys = (keys) => {
-    const set = new Set(keys || [])
-    setCart((prev) => prev.filter((i) => !set.has(i.key)))
-  }
-
-  // 生成订单（通常在结算/支付成功后调用）
-  const createOrder = (payload) => {
-    const order = {
-      id: uid(),
-      no: 'YG' + Date.now().toString().slice(-10),
-      items: payload.items,
-      totalPrice: payload.totalPrice,
-      discountPrice: payload.discountPrice,
-      payPrice: payload.payPrice,
-      address: payload.address,
-      payMethod: payload.payMethod,
-      status: '待支付', // 待支付 / 待发货 / 待收货 / 已完成 / 已取消 / 退款中 / 已退款
-      createdAt: new Date().toLocaleString('zh-CN'),
-      refundReason: '',
-    }
-    setOrders((prev) => [order, ...prev])
-    return order
-  }
-
-  const updateOrder = (id, patch) =>
-    setOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
-
-  const value = useMemo(
-    () => ({
-      cart,
-      orders,
-      addToCart,
-      updateQty,
-      removeItem,
-      toggleCheck,
-      toggleCheckAll,
-      clearChecked,
-      removeItemsByKeys,
-      createOrder,
-      updateOrder,
-    }),
-    [cart, orders]
-  )
-
+  const value = useMemo(() => ({ cart, orders, loading, error, setError, refreshCart, refreshOrders, addToCart, updateQty, removeItem, toggleCheck, toggleCheckAll, clearChecked, updateOrder }), [cart, orders, loading, error])
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>
 }
 
-export function useCart() {
-  return useContext(CartContext)
-}
-
-// 辅助：由购物车项解析商品详情
-export function resolveProduct(productId) {
-  return products.find((p) => p.id === Number(productId))
-}
+export function useCart() { return useContext(CartContext) }
+export function resolveProduct(productId) { return products.find((p) => p.id === Number(productId)) }

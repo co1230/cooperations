@@ -67,7 +67,7 @@ export default function ProductDetail() {
 
   const selectedLabels = product.skus.map((s) => selected[s.specName]).filter(Boolean)
 
-  const handleAction = (kind) => {
+  const handleAction = async (kind) => {
     if (selectedLabels.length < product.skus.length) {
       alert('请先选择完整规格')
       return
@@ -77,14 +77,10 @@ export default function ProductDetail() {
       return
     }
     if (kind === 'cart') {
-      addToCart({
-        productId: product.id,
-        skuLabels: selectedLabels,
-        price: currentCombo.price,
-        qty: 1,
-        maxStock: availStock,
-      })
-      showToast('已加入购物车')
+      try {
+        await addToCart({ productId: product.id, skuLabels: selectedLabels, qty: 1 })
+        showToast('已加入购物车')
+      } catch (error) { alert(error.message) }
     } else {
       // 立即购买：不写入购物车，直接把购买项传给结算页
       const buyItem = {
@@ -208,7 +204,7 @@ export default function ProductDetail() {
             </button>
           </div>
           <div style={{ marginTop: 12, fontSize: 12, color: '#999' }}>
-            * 演示环境中购物车 / 下单 / 支付为模拟实现（不真实扣款），正式由交易流程负责人（成员 C）对接。
+            * 购物车、订单和库存已接入 C 交易服务；支付仍为不真实扣款的模拟网关。
           </div>
         </div>
       </div>

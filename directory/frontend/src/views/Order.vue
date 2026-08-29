@@ -120,7 +120,7 @@ label="订单状态"
 
 <el-tag
 
-v-if="scope.row.status===1"
+v-if="scope.row.status==='PAID'"
 
 type="warning"
 
@@ -134,7 +134,7 @@ type="warning"
 
 <el-tag
 
-v-else-if="scope.row.status===2"
+v-else-if="scope.row.status==='SHIPPED'"
 
 type="success"
 
@@ -148,7 +148,7 @@ type="success"
 
 <el-tag
 
-v-else-if="scope.row.status===3"
+v-else-if="scope.row.status==='COMPLETED'"
 
 >
 
@@ -210,7 +210,7 @@ type="primary"
 
 size="small"
 
-v-if="scope.row.status===1"
+v-if="scope.row.status==='PAID'"
 
 @click="openShipDialog(scope.row)"
 

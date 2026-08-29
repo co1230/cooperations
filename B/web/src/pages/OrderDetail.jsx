@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom'
 import { useCart, resolveProduct } from '../components/CartContext'
 import { getShopById } from '../mock/data'
@@ -25,25 +26,42 @@ export default function OrderDetail() {
   const { id } = useParams()
   const navigate = useNavigate()
   const { orders, updateOrder } = useCart()
-  const order = orders.find((o) => o.id === id)
+  const order = orders.find((o) => String(o.id) === String(id))
+  const [refundOpen, setRefundOpen] = useState(false)
+  const [refundReason, setRefundReason] = useState('不想要了，申请退款')
+  const [refundSubmitting, setRefundSubmitting] = useState(false)
+  const [refundError, setRefundError] = useState('')
 
-  const cancelOrder = () => {
+  const cancelOrder = async () => {
     if (['待发货', '待收货', '已完成'].includes(order.status)) {
-      alert('当前状态不可取消（模拟规则）')
+      alert('当前状态不可取消')
       return
     }
-    if (confirm('确认取消该订单？')) updateOrder(order.id, { status: '已取消' })
+    if (confirm('确认取消该订单？')) try { await updateOrder(order.id, { status: '已取消' }) } catch (e) { alert(e.message) }
   }
 
   const refund = () => {
-    const reason = prompt('请输入退款/退货原因', '不想要了，申请退款')
-    if (reason === null) return
-    updateOrder(order.id, { status: '退款中', refundReason: reason })
-    alert('已提交退款申请（模拟：商家将处理）')
+    setRefundError('')
+    setRefundOpen(true)
   }
 
-  const confirmReceive = () => {
-    if (confirm('确认已收到货？')) updateOrder(order.id, { status: '已完成' })
+  const submitRefund = async () => {
+    const reason = refundReason.trim()
+    if (!reason) { setRefundError('请填写退款/退货原因'); return }
+    setRefundSubmitting(true)
+    setRefundError('')
+    try {
+      await updateOrder(order.id, { status: '退款中', refundReason: reason })
+      setRefundOpen(false)
+    } catch (e) {
+      setRefundError(e.message)
+    } finally {
+      setRefundSubmitting(false)
+    }
+  }
+
+  const confirmReceive = async () => {
+    if (confirm('确认已收到货？')) try { await updateOrder(order.id, { status: '已完成' }) } catch (e) { alert(e.message) }
   }
 
   const contactShop = (shop) => {
@@ -130,7 +148,7 @@ export default function OrderDetail() {
         <div className="section-title" style={{ fontSize: 16, marginBottom: 12 }}>收货信息</div>
         <div style={{ fontSize: 14, lineHeight: 2, color: '#333' }}>
           <div>收货人：{order.address.name}　{order.address.phone}</div>
-          <div>收货地址：{order.address.region} {order.address.detail}</div>
+          <div>收货地址：{order.address.address || `${order.address.region || ''} ${order.address.detail || ''}`}</div>
         </div>
       </div>
 
@@ -156,7 +174,7 @@ export default function OrderDetail() {
           </>
         )}
         {order.status === '待发货' && (
-          <button className="btn secondary" style={{ padding: '9px 20px', fontSize: 14 }} onClick={cancelOrder}>申请退款</button>
+          <button className="btn secondary" style={{ padding: '9px 20px', fontSize: 14 }} onClick={refund}>申请退款</button>
         )}
         {order.status === '待收货' && (
           <>
@@ -168,6 +186,29 @@ export default function OrderDetail() {
           <button className="btn secondary" style={{ padding: '9px 20px', fontSize: 14, color: 'var(--danger)' }} onClick={refund}>申请售后</button>
         )}
       </div>
+
+      {refundOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,.45)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => !refundSubmitting && setRefundOpen(false)}>
+          <div className="card" style={{ width: 460, maxWidth: '100%', margin: 0 }} onClick={(event) => event.stopPropagation()}>
+            <h3 style={{ marginBottom: 8 }}>{order.status === '待发货' ? '申请退款' : '申请退货/售后'}</h3>
+            <p style={{ color: '#666', fontSize: 13, marginBottom: 14 }}>提交后将生成售后工单，商家端和管理员端都可以查看处理。</p>
+            <textarea
+              value={refundReason}
+              onChange={(event) => setRefundReason(event.target.value)}
+              maxLength={200}
+              rows={5}
+              autoFocus
+              style={{ width: '100%', boxSizing: 'border-box', border: '1px solid #ddd', borderRadius: 8, padding: 12, resize: 'vertical' }}
+              placeholder="请填写退款/退货原因"
+            />
+            {refundError && <div style={{ color: 'var(--danger)', fontSize: 13, marginTop: 8 }}>{refundError}</div>}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+              <button className="btn secondary" disabled={refundSubmitting} onClick={() => setRefundOpen(false)}>取消</button>
+              <button className="btn" disabled={refundSubmitting} onClick={submitRefund}>{refundSubmitting ? '正在提交…' : '确认提交'}</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
