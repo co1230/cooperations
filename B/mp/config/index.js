@@ -11,7 +11,9 @@ const config = {
   sourceRoot: 'src',
   outputRoot: 'dist',
   plugins: [],
-  defineConstants: {},
+  defineConstants: {
+    'process.env.TARO_APP_C_API': JSON.stringify(process.env.TARO_APP_C_API || 'http://127.0.0.1:8002/api')
+  },
   copy: {
     patterns: [],
     options: {}

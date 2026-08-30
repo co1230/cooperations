@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react'
 import { products } from '../mock/data'
 import { load, save, uid } from '../utils/store'
-import { tradeApi } from '../api/trade'
 
 const CART_KEY = 'cart'
 let state = {
@@ -9,13 +8,6 @@ let state = {
   orders: load('orders', [])
 }
 const listeners = new Set()
-const statusNames = { PENDING_PAYMENT: '待支付', PAID: '待发货', SHIPPED: '待收货', COMPLETED: '已完成', CANCELLED: '已取消', CLOSED: '已关闭' }
-const displayOrder = (o) => ({ ...o, statusCode: o.status, status: o.afterSaleStatus === 'REFUNDED' ? '已退款' : ['APPLIED', 'PROCESSING', 'APPROVED', 'REFUNDING'].includes(o.afterSaleStatus) ? '退款中' : statusNames[o.status] || o.status, items: (o.items || []).map((i) => ({ ...i, key: String(i.id) })) })
-
-export async function refreshTradeData() {
-  const [cart, orders] = await Promise.all([tradeApi.cart(), tradeApi.orders()])
-  setState({ cart, orders: orders.map(displayOrder) })
-}
 
 function setState(patch) {
   state = { ...state, ...patch }
@@ -34,24 +26,35 @@ function commitOrders(fn) {
   save('orders', next)
 }
 
-export async function addToCart({ productId, skuLabels, qty = 1 }) {
-  await tradeApi.addCart({ productId, skuLabels, qty }); await refreshTradeData()
+export function addToCart({ productId, skuLabels, price, qty = 1, maxStock }) {
+  const key = `${productId}:${skuLabels.join('|')}`
+  commitCart((prev) => {
+    const exist = prev.find((i) => i.key === key)
+    if (exist) {
+      const newQty = Math.min(exist.qty + qty, maxStock || 99)
+      return prev.map((i) => (i.key === key ? { ...i, qty: newQty } : i))
+    }
+    return [...prev, { key, productId, skuLabels, price, qty, checked: true, maxStock }]
+  })
+  return key
 }
 
-export async function updateQty(key, qty) {
-  const cart = await tradeApi.updateCart(key, { quantity: Math.max(1, qty) }); setState({ cart })
+export function updateQty(key, qty) {
+  commitCart((prev) =>
+    prev.map((i) => (i.key === key ? { ...i, qty: Math.max(1, Math.min(qty, i.maxStock || 99)) } : i))
+  )
 }
 
-export async function removeItem(key) {
-  await tradeApi.deleteCart(key); await refreshTradeData()
+export function removeItem(key) {
+  commitCart((prev) => prev.filter((i) => i.key !== key))
 }
 
-export async function toggleCheck(key) {
-  const item = state.cart.find((i) => i.key === String(key)); const cart = await tradeApi.updateCart(key, { selected: !item.checked }); setState({ cart })
+export function toggleCheck(key) {
+  commitCart((prev) => prev.map((i) => (i.key === key ? { ...i, checked: !i.checked } : i)))
 }
 
-export async function toggleCheckAll(all) {
-  const cart = await tradeApi.selectCart(state.cart.map((i) => i.id), all); setState({ cart })
+export function toggleCheckAll(all) {
+  commitCart((prev) => prev.map((i) => ({ ...i, checked: all })))
 }
 
 export function clearChecked() {
@@ -81,11 +84,13 @@ export function createOrder(payload) {
   return order
 }
 
-export async function updateOrder(id, patch) {
-  if (patch.status === '已取消') await tradeApi.cancel(id)
-  else if (patch.status === '已完成') await tradeApi.confirm(id)
-  else if (patch.status === '退款中') await tradeApi.afterSale(id, { ticket_type: 'REFUND_ONLY', reason: patch.refundReason || '用户申请售后' })
-  await refreshTradeData()
+export function updateOrder(id, patch) {
+  commitOrders((prev) => prev.map((o) => (o.id === id ? { ...o, ...patch } : o)))
+}
+
+// 本地模式：从本地缓存重载购物车与订单
+export function refreshTradeData() {
+  setState({ cart: load(CART_KEY, []), orders: load('orders', []) })
 }
 
 function fmtTime(d) {
@@ -101,7 +106,7 @@ export function getState() {
 export function useGlobalStore() {
   const [, setTick] = useState(0)
   useEffect(() => {
-    refreshTradeData().catch(() => {})
+    refreshTradeData()
     const listener = () => setTick((t) => t + 1)
     listeners.add(listener)
     return () => listeners.delete(listener)

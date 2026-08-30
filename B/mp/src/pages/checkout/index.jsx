@@ -2,9 +2,8 @@ import Taro, { useRouter, useLoad, useDidShow } from '@tarojs/taro'
 import { View, Text, Image } from '@tarojs/components'
 import { useState } from 'react'
 import { load } from '../../utils/store'
-import { resolveProduct, groupByShop } from '../../store/global'
+import { resolveProduct, groupByShop, createOrder } from '../../store/global'
 import { getShopById } from '../../mock/data'
-import { tradeApi, requestId } from '../../api/trade'
 
 export default function Checkout() {
   const router = useRouter()
@@ -13,7 +12,6 @@ export default function Checkout() {
   const [totalPrice, setTotalPrice] = useState(0)
   const [discount, setDiscount] = useState(0)
   const [payPrice, setPayPrice] = useState(0)
-  const [checkoutPayload, setCheckoutPayload] = useState({ mode: 'cart' })
   const [submitting, setSubmitting] = useState(false)
 
   const reloadAddress = () => {
@@ -22,24 +20,22 @@ export default function Checkout() {
     setAddress(sel || list.find((a) => a.isDefault) || list[0] || null)
   }
 
-  useLoad(async () => {
+  useLoad(() => {
     const fromBuyNow = router.params.fromBuyNow === '1'
-    let payload = { mode: 'cart' }
     if (fromBuyNow) {
       const item = Taro.getStorageSync('buyNowItem')
       if (item) {
         setItems([item])
-        payload = { mode: 'buy_now', buy_now: { source_product_id: item.productId, spec_labels: item.skuLabels, quantity: item.qty } }
+        const t = item.price * item.qty
+        setTotalPrice(t); setDiscount(0); setPayPrice(t)
       }
     } else {
       const list = Taro.getStorageSync('checkoutItems') || []
       setItems(list)
+      const t = list.reduce((s, i) => s + i.price * i.qty, 0)
+      const d = t >= 199 ? 20 : 0
+      setTotalPrice(t); setDiscount(d); setPayPrice(t - d)
     }
-    setCheckoutPayload(payload)
-    try {
-      const result = await tradeApi.preview(payload)
-      setTotalPrice(result.originalAmount); setDiscount(result.discountAmount); setPayPrice(result.payAmount)
-    } catch (e) { Taro.showToast({ title: e.message, icon: 'none' }) }
     reloadAddress()
   })
 
@@ -54,10 +50,17 @@ export default function Checkout() {
     if (items.length === 0) { Taro.showToast({ title: '没有待结算商品', icon: 'none' }); return }
     setSubmitting(true)
     try {
-      const result = await tradeApi.createOrders({ ...checkoutPayload, address: { name: address.name, phone: address.phone, address: `${address.region || ''} ${address.detail || ''}`.trim() }, request_id: requestId('order') })
-      Taro.setStorageSync('pendingCheckout', result)
-      Taro.navigateTo({ url: `/pages/pay/index?checkoutNo=${result.checkoutNo}&amount=${result.payAmount}` })
-    } catch (e) { Taro.showToast({ title: e.message, icon: 'none' }) } finally { setSubmitting(false) }
+      const order = createOrder({
+        items,
+        totalPrice,
+        discountPrice: discount,
+        payPrice,
+        address,
+        payMethod: ''
+      })
+      Taro.setStorageSync('pendingOrderId', order.id)
+      Taro.navigateTo({ url: `/pages/pay/index?id=${order.id}` })
+    } finally { setSubmitting(false) }
   }
 
   const groups = groupByShop(items)
