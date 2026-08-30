@@ -15,7 +15,7 @@ export default function Home() {
   return (
     <div className="page">
       <div className="card" style={{ marginBottom: 24, padding: 24 }}>
-        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 6 }}>欢迎来到优购商城 👋</div>
+        <div style={{ fontSize: 26, fontWeight: 700, marginBottom: 6 }}>欢迎来到萝卜商城 👋</div>
         <div style={{ color: '#666' }}>浏览全场商品、发现好物，挑选心仪的商品加入收藏。</div>
       </div>
 

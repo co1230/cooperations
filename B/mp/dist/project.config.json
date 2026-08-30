@@ -1,7 +1,7 @@
 {
   "miniprogramRoot": "./",
   "projectname": "cooperations-mp",
-  "description": "优购商城 · 用户端小程序",
+  "description": "萝卜商城 · 用户端小程序",
   "appid": "wx62f6d78dab7b472c",
   "setting": {
     "urlCheck": false,

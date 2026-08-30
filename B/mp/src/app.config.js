@@ -19,7 +19,7 @@ export default defineAppConfig({
   window: {
     backgroundTextStyle: 'light',
     navigationBarBackgroundColor: '#ff5000',
-    navigationBarTitleText: '优购商城',
+    navigationBarTitleText: '萝卜商城',
     navigationBarTextStyle: 'white',
     backgroundColor: '#f5f5f5'
   },

@@ -59,7 +59,7 @@ export function getProductById(id) {
 export const currentUser = {
   id: 1,
   username: 'demo_user',
-  nickname: '优购用户',
+  nickname: '萝卜用户',
   phone: '138****8888',
   avatar: 'https://picsum.photos/seed/avatar/120/120'
 }

@@ -44,7 +44,7 @@ export default function Layout() {
     <>
       <header className="header">
         <div className="header-inner">
-          <NavLink to="/" className="logo">优购商城</NavLink>
+          <NavLink to="/" className="logo">萝卜商城</NavLink>
           <form className="header-search" onSubmit={onSearch}>
             <input
               placeholder="搜索商品，如：手机、连衣裙、坚果…"
@@ -76,7 +76,7 @@ export default function Layout() {
       </div>
 
       <footer className="footer">
-        <div>优购商城 · 团队协作项目 · 用户端负责人（成员 B）</div>
+        <div>萝卜商城 · 团队协作项目 · 用户端负责人（成员 B）</div>
         <div>购物车 / 下单支付 / 订单售后服务由交易流程负责人（成员 C）负责，此处为模拟实现用于整体演示</div>
       </footer>
     </>
